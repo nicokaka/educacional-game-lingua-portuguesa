@@ -132,6 +132,7 @@
     height: auto;
     max-height: 480px;
     object-fit: contain;
+    margin-left: -35px; /* Empurra a imagem para a esquerda para alinhar o rosto com o centro da tela, compensando o peso do livro na arte */
     filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
     /* Disfarça corte abrupto em baixo fazendo a imagem sumir (fade out) */
     -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
