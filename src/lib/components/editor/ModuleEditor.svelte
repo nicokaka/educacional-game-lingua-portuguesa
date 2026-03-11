@@ -92,56 +92,55 @@
 </script>
 
 <div class="module-editor">
-  <div class="editor-header">
-    <h2 class="editor-title">{moduleId ? '✏️ Editar Módulo' : '📝 Novo Módulo'}</h2>
+  <div class="header-nav">
     <button class="cancel-btn" onclick={oncancel}>← Voltar</button>
+    <div class="save-controls">
+      {#if saveError}
+        <span class="save-error">⚠️ {saveError}</span>
+      {/if}
+      {#if saveSuccess}
+        <span class="save-success">✅ Salvo!</span>
+      {/if}
+      <button class="save-btn" onclick={handleSave} disabled={saving}>
+        {saving ? 'Gravando...' : 'Salvar Módulo'}
+      </button>
+    </div>
   </div>
 
-  <!-- Dados do módulo -->
-  <div class="module-fields">
-    <div class="field">
-      <label class="field-label" for="mod-title">Título do Módulo</label>
-      <input id="mod-title" class="field-input" bind:value={title} placeholder="Ex: Ortografia - 6º Ano" />
-    </div>
-    <div class="field">
-      <label class="field-label" for="mod-author">Autor</label>
-      <input id="mod-author" class="field-input" bind:value={author} placeholder="Ex: Prof. Silva" />
-    </div>
+  <!-- Cabeçalho do formulário (estilo Google Forms com barra roxa no topo) -->
+  <div class="top-card">
+    <input 
+      class="title-input" 
+      bind:value={title} 
+      placeholder="Título do Formulário (Ex: Ortografia - 6º Ano)" 
+    />
+    <input 
+      class="desc-input" 
+      bind:value={author} 
+      placeholder="Nome do Professor" 
+    />
   </div>
 
   <!-- Lista de desafios -->
-  <div class="challenges-section">
-    <div class="section-header">
-      <h3 class="section-title">Desafios ({challenges.length})</h3>
-      <button class="add-btn" onclick={addChallenge}>+ Adicionar Desafio</button>
-    </div>
-
+  <div class="challenges-list">
     {#if challenges.length === 0}
-      <div class="empty-challenges">
-        <p>Nenhum desafio ainda. Clique em <strong>"+ Adicionar Desafio"</strong> para começar.</p>
-      </div>
-    {:else}
-      <div class="challenges-list">
-        {#each challenges as challenge, i (i)}
-          <div class="challenge-wrapper">
-            <span class="challenge-number">Desafio {i + 1}</span>
-            <ChallengeForm bind:challenge={challenges[i]} onremove={() => removeChallenge(i)} />
-          </div>
-        {/each}
+      <div class="empty-state">
+        <p>Módulo vazio. Comece a adicionar perguntas!</p>
       </div>
     {/if}
+
+    {#each challenges as challenge, i (i)}
+      <div class="challenge-wrapper">
+        <ChallengeForm bind:challenge={challenges[i]} onremove={() => removeChallenge(i)} />
+      </div>
+    {/each}
   </div>
 
-  <!-- Salvar -->
-  <div class="save-section">
-    {#if saveError}
-      <p class="save-error">⚠️ {saveError}</p>
-    {/if}
-    {#if saveSuccess}
-      <p class="save-success">✅ Módulo salvo com sucesso!</p>
-    {/if}
-    <button class="save-btn" onclick={handleSave} disabled={saving}>
-      {saving ? '💾 Salvando...' : '💾 Salvar Módulo'}
+  <!-- Botão Flutuante Central para Adicionar -->
+  <div class="add-section">
+    <button class="fab-btn" onclick={addChallenge} title="Adicionar Pergunta">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      Adicionar Pergunta
     </button>
   </div>
 </div>
@@ -150,158 +149,49 @@
   .module-editor {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-    max-width: 700px;
+    max-width: 768px;
     width: 100%;
+    margin: 0 auto;
+    padding-bottom: 5rem; /* espaço extra pro scroll */
   }
 
-  .editor-header {
+  .header-nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-  }
-
-  .editor-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: var(--color-text);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--color-bg);
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .cancel-btn {
-    padding: 0.4rem 0.8rem;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
     color: var(--color-muted);
-    font-size: 0.85rem;
+    font-size: 0.95rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: color var(--transition-fast);
   }
 
   .cancel-btn:hover {
-    border-color: var(--color-primary);
     color: var(--color-text);
   }
 
-  /* ── Module Fields ── */
-  .module-fields {
+  .save-controls {
     display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .field-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--color-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .field-input {
-    padding: 0.55rem 0.75rem;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    color: var(--color-text);
-    font-size: 0.95rem;
-    font-family: var(--font-body);
-    transition: border-color var(--transition-fast);
-  }
-
-  .field-input:focus {
-    border-color: var(--color-primary);
-    outline: none;
-  }
-
-  /* ── Challenges Section ── */
-  .challenges-section {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-  }
-
-  .section-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--color-text);
-  }
-
-  .add-btn {
-    padding: 0.5rem 1rem;
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid var(--color-primary);
-    border-radius: var(--radius-md);
-    color: var(--color-primary);
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-  }
-
-  .add-btn:hover {
-    background: rgba(139, 92, 246, 0.2);
-  }
-
-  .challenges-list {
-    display: flex;
-    flex-direction: column;
     gap: 1rem;
-  }
-
-  .challenge-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .challenge-number {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .empty-challenges {
-    text-align: center;
-    padding: 2rem;
-    background: var(--color-surface);
-    border: 1px dashed var(--color-border);
-    border-radius: var(--radius-lg);
-    color: var(--color-muted);
-    font-size: 0.9rem;
-  }
-
-  /* ── Save Section ── */
-  .save-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.75rem;
-    padding-top: 0.5rem;
   }
 
   .save-error {
     color: var(--color-wrong);
     font-size: 0.85rem;
-    text-align: center;
   }
 
   .save-success {
@@ -311,25 +201,119 @@
   }
 
   .save-btn {
-    padding: 0.85rem 2.5rem;
-    background: linear-gradient(135deg, var(--color-primary), #6d28d9);
+    padding: 0.6rem 1.5rem;
+    background: var(--color-primary);
     border: none;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-sm);
     color: white;
-    font-size: 1.1rem;
-    font-weight: 700;
+    font-size: 0.95rem;
+    font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-normal);
-    box-shadow: 0 4px 20px var(--color-primary-glow);
+    transition: background-color var(--transition-fast);
   }
 
   .save-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px var(--color-primary-glow);
+    background: var(--color-primary-hover);
   }
 
   .save-btn:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* ── Top Card (Google Forms Style) ── */
+  .top-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 2rem 1.5rem;
+    position: relative;
+    border-top: 10px solid var(--color-primary); /* Barra roxa icônica */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .title-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--color-text);
+    font-size: 1.4rem; /* Reduzido de 2rem para caber no desktop/mobile */
+    font-weight: 500;
+    padding-bottom: 0.5rem;
+    width: 100%;
+    transition: border-bottom-color var(--transition-fast);
+  }
+
+  .title-input:focus {
+    outline: none;
+    border-bottom: 2px solid var(--color-primary);
+    padding-bottom: calc(0.5rem - 1px);
+  }
+
+  .desc-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    color: var(--color-muted);
+    font-size: 1rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.2rem;
+    width: 100%;
+    transition: border-bottom-color var(--transition-fast);
+  }
+
+  .desc-input:focus {
+    outline: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* ── Challenges ── */
+  .challenges-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-muted);
+  }
+
+  /* ── FAB Button ── */
+  .add-section {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+  }
+
+  .fab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: all var(--transition-fast);
+  }
+
+  .fab-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
   }
 </style>
