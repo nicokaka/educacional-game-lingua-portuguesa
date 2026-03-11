@@ -39,6 +39,7 @@
   /* Tipografia */
   --font-body: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'Cascadia Code', 'Fira Code', monospace;
+  --font-title: 'Macondo', cursive;
 
   /* Espaçamento */
   --space-xs: 0.25rem;

@@ -103,8 +103,9 @@
   }
 
   .game-title {
-    font-size: clamp(2.5rem, 8vw, 3.5rem); /* Ajustado para caber o nome novo em telas menores */
-    font-weight: 800;
+    font-family: var(--font-title);
+    font-size: clamp(2.5rem, 8vw, 4rem); /* Aumentei max para 4rem pra Macondo brilhar */
+    font-weight: 400; /* Macondo não precisa de 800 */
     line-height: 1;
     letter-spacing: -0.02em;
   }
