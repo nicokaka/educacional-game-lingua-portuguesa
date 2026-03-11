@@ -33,7 +33,7 @@
 <div class="menu-screen">
   <div class="logo-section">
     <h1 class="game-title">
-      <span class="title-gram">Gram</span><span class="title-quest">Quest</span>
+      <span class="title-alquimia">Alquimia</span>&nbsp;<span class="title-verbal">Verbal</span>
     </h1>
     <p class="game-subtitle">Derrote os monstros da gramática!</p>
   </div>
@@ -103,14 +103,14 @@
   }
 
   .game-title {
-    font-size: 3.5rem;
+    font-size: clamp(2.5rem, 8vw, 3.5rem); /* Ajustado para caber o nome novo em telas menores */
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.02em;
   }
 
-  .title-gram { color: var(--color-primary); }
-  .title-quest { color: var(--color-correct); }
+  .title-alquimia { color: var(--color-primary); }
+  .title-verbal { color: var(--color-correct); }
 
   .game-subtitle {
     font-size: 1.1rem;
@@ -119,14 +119,22 @@
 
   .menu-monster {
     animation: float 3s ease-in-out infinite;
+    margin-bottom: -100px; /* Aprofundado atrás dos módulos */
+    margin-top: -10px; /* Sobe a imagem um pouco mais para perto do título */
+    position: relative;
+    z-index: 1;
+    pointer-events: none; /* Pra não bloquear cliques nos cards se sobrepor */
   }
 
   .professor-img {
-    width: 160px;
+    width: 380px; /* BEM maior! */
     height: auto;
-    max-height: 200px;
+    max-height: 480px;
     object-fit: contain;
-    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
+    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
+    /* Disfarça corte abrupto em baixo fazendo a imagem sumir (fade out) */
+    -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
   }
 
   /* ── Módulos Grid ── */
@@ -135,6 +143,7 @@
     font-weight: 700;
     color: var(--color-text);
     margin-bottom: 0.5rem;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9); /* Garante leitura sobre a imagem */
   }
 
   .modules-grid {
@@ -143,6 +152,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    position: relative;
+    z-index: 10;
   }
 
   .module-card {
