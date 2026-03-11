@@ -64,14 +64,20 @@ GramQuest é um **jogo educacional gamificado de gramática portuguesa** para al
 
 ### 🔲 Falta fazer
 
-#### Fase F — Game Feel (prioridade média)
+#### Fase F — Testes & Validação (prioridade altíssima)
+- [ ] Criar no editor um módulo de teste com os 4 tipos de desafio
+- [ ] Jogar o módulo completo garantindo fluxo de vitória
+- [ ] Testar falhas intencionais no jogo (dano, game over)
+- [ ] Testar persistência de edição (editando módulo existente)
+
+#### Fase G — Game Feel (prioridade média)
 - [ ] Arquivos de som `.ogg` reais (acerto, erro, vitória) em `public/sounds/`
 - [ ] Monstros SVG diferentes por sprite (hoje é um SVG genérico inline)
 - [ ] Animação de dano no monstro (CSS: scale, shake, opacity)
 - [ ] Animação de morte do monstro (CSS: desaparece + partículas)
 - [ ] Efeito de partículas simples no acerto (CSS pseudo-elements)
 
-#### Fase G — PWA + Deploy (prioridade alta)
+#### Fase H — PWA + Deploy (prioridade alta)
 - [ ] Instalar `vite-plugin-pwa`
 - [ ] Criar `public/manifest.json` (ícone, nome, cores do tema)
 - [ ] Configurar Service Worker para cache offline
@@ -80,7 +86,7 @@ GramQuest é um **jogo educacional gamificado de gramática portuguesa** para al
 - [ ] Testar offline (Service Worker cacheia assets)
 - [ ] Testar em navigador de escola (Chrome/Edge)
 
-#### Fase H — Documentação (prioridade média)
+#### Fase I — Documentação (prioridade média)
 - [ ] Atualizar `README.md` com a nova arquitetura
 - [ ] Escrever `docs/MANUAL_PROFESSOR.md`
 - [ ] Documentação do estágio
