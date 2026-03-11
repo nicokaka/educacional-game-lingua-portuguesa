@@ -39,17 +39,7 @@
   </div>
 
   <div class="menu-monster">
-    <svg viewBox="0 0 120 120" class="monster-svg" aria-hidden="true">
-      <circle cx="60" cy="65" r="40" fill="#8b5cf6" opacity="0.3" />
-      <circle cx="60" cy="60" r="35" fill="#7c3aed" />
-      <circle cx="48" cy="50" r="8" fill="white" />
-      <circle cx="72" cy="50" r="8" fill="white" />
-      <circle cx="50" cy="50" r="4" fill="#0f172a" />
-      <circle cx="74" cy="50" r="4" fill="#0f172a" />
-      <path d="M 45 72 Q 60 82 75 72" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" />
-      <circle cx="30" cy="40" r="5" fill="#a78bfa" />
-      <circle cx="90" cy="40" r="5" fill="#a78bfa" />
-    </svg>
+    <img src="/prof-cartoon.png" class="professor-img" alt="Professor Cartoon" />
   </div>
 
   {#if loading}
@@ -131,10 +121,12 @@
     animation: float 3s ease-in-out infinite;
   }
 
-  .monster-svg {
-    width: 120px;
-    height: 120px;
-    filter: drop-shadow(0 8px 24px var(--color-primary-glow));
+  .professor-img {
+    width: 160px;
+    height: auto;
+    max-height: 200px;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
   }
 
   /* ── Módulos Grid ── */
