@@ -1,0 +1,108 @@
+// conteudo.jsonc — Módulo: Ortografia 6º ano — Prof. Silva
+// Este é um arquivo de exemplo. O professor pode editar livremente.
+// Linhas que começam com // são comentários e serão ignoradas pelo jogo.
+{
+  "module": "Ortografia - Acentuação e Escrita",
+  "author": "Prof. Silva",
+
+  // O professor pode MISTURAR diferentes tipos de desafio!
+  // Tipos disponíveis: drag_drop, multiple_choice, true_false, ordering
+  "challenges": [
+
+    // ── Tipo 1: Arrastar e soltar (preencher lacuna) ──
+    {
+      "id": "c1",
+      "type": "drag_drop",
+      "prompt": "O menino fez a _____ do trabalho escolar.",
+      "correctAnswer": "correção",
+      "difficulty": 2,
+      "monster": { "name": "Gram-Monstro", "sprite": "monster_01" },
+      "hint": "Pense no verbo 'corrigir'",
+      "loot": [
+        { "text": "correção", "correct": true },
+        { "text": "correçao", "correct": false },
+        { "text": "corresão", "correct": false },
+        { "text": "correcão", "correct": false }
+      ]
+    },
+
+    // ── Tipo 2: Múltipla escolha ──
+    {
+      "id": "c2",
+      "type": "multiple_choice",
+      "prompt": "Qual frase está escrita corretamente?",
+      "difficulty": 1,
+      "monster": { "name": "Err-Ogro", "sprite": "monster_02" },
+      "options": [
+        { "text": "A professora corrigiu as provas.", "correct": true, "feedback": "Correto! 'corrigiu' é do verbo corrigir." },
+        { "text": "A profesora corrijiu as provas.", "correct": false, "feedback": "'Professora' tem dois S, e 'corrigiu' com G." },
+        { "text": "A professora corrijiu as provas.", "correct": false, "feedback": "Quase! 'Corrigiu' se escreve com G, não J." },
+        { "text": "A profesora corrigiu as provas.", "correct": false, "feedback": "'Professora' tem dois S." }
+      ]
+    },
+
+    // ── Tipo 3: Verdadeiro ou Falso ──
+    {
+      "id": "c3",
+      "type": "true_false",
+      "prompt": "A palavra 'exceção' está escrita corretamente.",
+      "correctAnswer": true,
+      "difficulty": 1,
+      "explanation": "Sim! 'Exceção' vem do latim exceptio. O X antes de C tem som de S.",
+      "monster": { "name": "Falsi-Fera", "sprite": "monster_03" }
+    },
+
+    // ── Tipo 4: Verdadeiro ou Falso (outra) ──
+    {
+      "id": "c4",
+      "type": "true_false",
+      "prompt": "A palavra 'ancioso' está escrita corretamente.",
+      "correctAnswer": false,
+      "difficulty": 1,
+      "explanation": "Não! O correto é 'ansioso', com S. Vem de 'ânsia'.",
+      "monster": { "name": "Falsi-Fera", "sprite": "monster_03" }
+    },
+
+    // ── Tipo 5: Ordenação ──
+    {
+      "id": "c5",
+      "type": "ordering",
+      "prompt": "Arraste as palavras para formar a frase correta:",
+      "fragments": ["Os", "alunos", "estudaram", "para", "a", "prova"],
+      "shuffled": true,
+      "difficulty": 3,
+      "monster": { "name": "Caos-Cobra", "sprite": "monster_04" }
+    },
+
+    // ── Tipo 6: Arrastar e soltar ──
+    {
+      "id": "c6",
+      "type": "drag_drop",
+      "prompt": "A _____ da escola é muito simpática.",
+      "correctAnswer": "diretora",
+      "difficulty": 2,
+      "monster": { "name": "Gram-Monstro", "sprite": "monster_01" },
+      "loot": [
+        { "text": "diretora", "correct": true },
+        { "text": "diretóra", "correct": false },
+        { "text": "diritora", "correct": false },
+        { "text": "deretora", "correct": false }
+      ]
+    },
+
+    // ── Tipo 7: Múltipla escolha ──
+    {
+      "id": "c7",
+      "type": "multiple_choice",
+      "prompt": "Em qual alternativa todas as palavras estão acentuadas corretamente?",
+      "difficulty": 3,
+      "monster": { "name": "Acento-Rex", "sprite": "monster_02" },
+      "options": [
+        { "text": "café, sofá, dominó", "correct": true, "feedback": "Correto! Todas são oxítonas terminadas em vogal aberta." },
+        { "text": "café, sofá, domino", "correct": false, "feedback": "'Dominó' é oxítona terminada em O aberto — precisa de acento." },
+        { "text": "cafe, sofá, dominó", "correct": false, "feedback": "'Café' é oxítona terminada em E aberto — precisa de acento." },
+        { "text": "café, sofa, dominó", "correct": false, "feedback": "'Sofá' é oxítona terminada em A aberto — precisa de acento." }
+      ]
+    }
+  ]
+}
