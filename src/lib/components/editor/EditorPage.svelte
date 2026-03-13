@@ -147,15 +147,15 @@
     <!-- ═══ EDITOR DE MÓDULO ═══ -->
     <div class="editor-wrapper">
       {#if editing === 'new'}
-        <ModuleEditor onsave={handleSaved} oncancel={() => editing = null} />
+        <ModuleEditor onSave={handleSaved} onCancel={() => { editing = null; }} />
       {:else}
         <ModuleEditor
           moduleId={editing.id}
           initialTitle={editing.title}
           initialAuthor={editing.author}
           initialChallenges={editing.challenges}
-          onsave={handleSaved}
-          oncancel={() => editing = null}
+          onSave={handleSaved}
+          onCancel={() => { editing = null; }}
         />
       {/if}
     </div>

@@ -104,10 +104,9 @@ export function submitAnswer(answer, manager) {
 
     dispatchFeedback('correct');
 
-    // Monstro morreu → próximo desafio (com delay pra animação)
-    if (state.monsterHp <= 0) {
-      setTimeout(() => loadNextChallenge(manager), 1200);
-    }
+    // Sempre avança para a próxima pergunta se acertou
+    const delay = state.monsterHp <= 0 ? 1200 : 800;
+    setTimeout(() => loadNextChallenge(manager), delay);
 
     return { correct: true };
   } else {

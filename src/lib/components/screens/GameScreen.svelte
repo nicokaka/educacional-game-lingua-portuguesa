@@ -5,6 +5,7 @@
   import { initAudio } from '../../engine/feedbackEngine.js';
   import ChallengeHost from '../ChallengeHost.svelte';
   import HUD from '../shared/HUD.svelte';
+  import MonsterSvg from './MonsterSvg.svelte';
   import { navigate } from '../../router.svelte.js';
 
   let { moduleId } = $props();
@@ -14,10 +15,27 @@
   let loading = $state(true);
   let loadError = $state('');
 
+  let lastHp = $state(0);
+  let isHit = $state(false);
+
   // Carrega módulo do Supabase
   $effect(() => {
     if (moduleId) {
       loadModule(moduleId);
+    }
+  });
+
+  // Observa HP do monstro para hit animation
+  $effect(() => {
+    if (lastHp === 0 && game.monsterHp > 0) {
+      lastHp = game.monsterHp;
+    }
+    if (game.monsterHp < lastHp) {
+      isHit = true;
+      setTimeout(() => isHit = false, 300);
+      lastHp = game.monsterHp;
+    } else if (game.monsterHp > lastHp) {
+      lastHp = game.monsterHp;
     }
   });
 
@@ -87,16 +105,11 @@
 
     <!-- Monstro -->
     <div class="monster-area">
-      <div class="monster-display" class:hurt={game.monsterHp < game.maxMonsterHp * 0.3}>
-        <svg viewBox="0 0 120 120" class="battle-monster-svg" aria-label="Monstro">
-          <circle cx="60" cy="65" r="40" fill="#8b5cf6" opacity="0.2" />
-          <circle cx="60" cy="60" r="35" fill="#7c3aed" />
-          <circle cx="48" cy="50" r="8" fill="white" />
-          <circle cx="72" cy="50" r="8" fill="white" />
-          <circle cx="50" cy="50" r="4" fill="#0f172a" />
-          <circle cx="74" cy="50" r="4" fill="#0f172a" />
-          <path d="M 45 72 Q 60 65 75 72" stroke="#f87171" stroke-width="3" fill="none" stroke-linecap="round" />
-        </svg>
+      <div class="monster-display" 
+           class:hurt={game.monsterHp > 0 && game.monsterHp < game.maxMonsterHp * 0.3}
+           class:hit={isHit}
+           class:dead={game.monsterHp <= 0}>
+        <MonsterSvg index={game.progress.current} class="battle-monster-svg" />
         {#if game.currentChallenge?.monster}
           <span class="monster-name">{game.currentChallenge.monster.name}</span>
         {/if}
@@ -211,13 +224,65 @@
     align-items: center;
     gap: 0.5rem;
     animation: float 3s ease-in-out infinite;
+    position: relative; /* para pseudo-elementos (partículas) */
   }
 
   .monster-display.hurt {
-    animation: float 3s ease-in-out infinite, shake 0.2s ease infinite;
+    animation: float 3s ease-in-out infinite, shake 0.5s ease infinite;
   }
 
-  .battle-monster-svg {
+  /* ── Animação de Dano (Hit) ── */
+  .monster-display.hit :global(.battle-monster-svg) {
+    animation: flash-damage 0.3s ease;
+  }
+  @keyframes flash-damage {
+    0%, 100% { filter: drop-shadow(0 4px 12px var(--color-primary-glow)); }
+    50% { filter: drop-shadow(0 4px 25px var(--color-wrong)) brightness(1.5) sepia(1) hue-rotate(-50deg); transform: scale(0.9); }
+  }
+
+  /* Partículas simples CSS no hit */
+  .monster-display.hit::after {
+    content: '💥';
+    position: absolute;
+    top: 20%;
+    left: 45%;
+    font-size: 2.5rem;
+    pointer-events: none;
+    animation: particle-burst 0.3s ease-out forwards;
+  }
+  @keyframes particle-burst {
+    0% { transform: scale(0.5) translate(0, 0); opacity: 1; }
+    100% { transform: scale(1.5) translate(20px, -30px); opacity: 0; }
+  }
+
+  /* ── Animação de Morte ── */
+  .monster-display.dead :global(.battle-monster-svg) {
+    animation: die 1s ease-out forwards;
+  }
+  @keyframes die {
+    0% { transform: scale(1); opacity: 1; filter: grayscale(0); }
+    30% { transform: scale(1.2); filter: grayscale(0.5) brightness(1.2); }
+    100% { transform: scale(0) rotate(180deg) translateY(50px); opacity: 0; filter: grayscale(1); }
+  }
+
+  .monster-display.dead::before {
+    content: '✨';
+    position: absolute;
+    top: 50%;
+    font-size: 3rem;
+    pointer-events: none;
+    animation: smoke-puff 0.8s ease-out forwards;
+    animation-delay: 0.2s;
+    opacity: 0;
+  }
+  @keyframes smoke-puff {
+    0% { transform: scale(0) translateY(0); opacity: 1; filter: blur(0px); }
+    100% { transform: scale(3) translateY(-40px); opacity: 0; filter: blur(4px); }
+  }
+
+  /* ── Fim das animações do monstro ── */
+
+  :global(.battle-monster-svg) {
     width: 100px;
     height: 100px;
     filter: drop-shadow(0 4px 12px var(--color-primary-glow));

@@ -7,30 +7,28 @@
     initialTitle = '',
     initialAuthor = '',
     initialChallenges = [],
-    onsave,
-    oncancel,
+    onSave,
+    onCancel,
   } = $props();
 
-  let title = $state('');
-  let author = $state('');
-  let challenges = $state([]);
+  // svelte-ignore state_referenced_locally
+  let title = $state(initialTitle);
+  // svelte-ignore state_referenced_locally
+  let author = $state(initialAuthor);
+  // svelte-ignore state_referenced_locally
+  let challenges = $state(
+    (initialChallenges || []).map((c, i) => ({ 
+      ...c, 
+      id: c.id || Date.now() + i + Math.random() 
+    }))
+  );
   let saving = $state(false);
   let saveError = $state('');
   let saveSuccess = $state(false);
-  let initialized = $state(false);
-
-  // Inicializa com valores das props na primeira montagem
-  $effect(() => {
-    if (!initialized) {
-      title = initialTitle;
-      author = initialAuthor;
-      challenges = initialChallenges.length > 0 ? structuredClone(initialChallenges) : [];
-      initialized = true;
-    }
-  });
 
   function addChallenge() {
     challenges = [...challenges, {
+      id: Date.now() + Math.random(),
       type: 'multiple_choice',
       prompt: '',
       difficulty: 1,
@@ -81,7 +79,7 @@
 
       saveSuccess = true;
       setTimeout(() => {
-        onsave?.();
+        onSave?.();
       }, 1000);
     } catch (e) {
       saveError = e.message;
@@ -93,7 +91,7 @@
 
 <div class="module-editor">
   <div class="header-nav">
-    <button class="cancel-btn" onclick={oncancel}>← Voltar</button>
+    <button class="cancel-btn" onclick={() => onCancel?.()}>← Voltar</button>
     <div class="save-controls">
       {#if saveError}
         <span class="save-error">⚠️ {saveError}</span>
@@ -129,7 +127,7 @@
       </div>
     {/if}
 
-    {#each challenges as challenge, i (i)}
+    {#each challenges as challenge, i (challenge.id || i)}
       <div class="challenge-wrapper">
         <ChallengeForm bind:challenge={challenges[i]} onremove={() => removeChallenge(i)} />
       </div>

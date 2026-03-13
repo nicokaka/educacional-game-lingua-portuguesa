@@ -55,12 +55,12 @@ export async function fetchModuleWithChallenges(moduleId) {
   return {
     module: mod.title,
     author: mod.author,
-    challenges: challenges.map(ch => ({
-      id: ch.id,
+    challenges: challenges.map((ch, i) => ({
+      ...ch.data, // Espalha os dados específicos do tipo primeiro
+      id: ch.data?.id || ch.id || (Date.now() + i), // Força ID único pra interface
       type: ch.type,
       prompt: ch.prompt,
       difficulty: ch.difficulty,
-      ...ch.data, // Espalha os dados específicos do tipo (loot, options, fragments, etc.)
     })),
   };
 }
