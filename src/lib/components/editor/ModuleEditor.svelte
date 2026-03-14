@@ -62,6 +62,66 @@
         saveError = `Desafio ${i + 1}: preencha o enunciado.`;
         return;
       }
+      if (ch.type === 'true_false') {
+        if (!Array.isArray(ch.statements) || ch.statements.length === 0) {
+          saveError = `Desafio ${i + 1}: adicione pelo menos 1 afirmacao.`;
+          return;
+        }
+        const emptyStatement = ch.statements.findIndex((statement) => !statement.text?.trim());
+        if (emptyStatement !== -1) {
+          saveError = `Desafio ${i + 1}: preencha a afirmacao ${emptyStatement + 1}.`;
+          return;
+        }
+      }
+      if (ch.type === 'multiple_choice') {
+        if (!Array.isArray(ch.options) || ch.options.length < 2) {
+          saveError = `Desafio ${i + 1}: adicione pelo menos 2 alternativas.`;
+          return;
+        }
+        const emptyOption = ch.options.findIndex((option) => !option.text?.trim());
+        if (emptyOption !== -1) {
+          saveError = `Desafio ${i + 1}: preencha a alternativa ${emptyOption + 1}.`;
+          return;
+        }
+        const correctCount = ch.options.filter((option) => option.correct).length;
+        if (correctCount !== 1) {
+          saveError = `Desafio ${i + 1}: marque exatamente 1 alternativa correta.`;
+          return;
+        }
+      }
+      if (ch.type === 'drag_drop') {
+        if (!ch.correctAnswer?.trim()) {
+          saveError = `Desafio ${i + 1}: preencha a resposta correta.`;
+          return;
+        }
+        if (!Array.isArray(ch.loot) || ch.loot.length < 2) {
+          saveError = `Desafio ${i + 1}: adicione pelo menos 2 opcoes na mochila.`;
+          return;
+        }
+        const emptyLoot = ch.loot.findIndex((item) => !item.text?.trim());
+        if (emptyLoot !== -1) {
+          saveError = `Desafio ${i + 1}: preencha a opcao ${emptyLoot + 1} da mochila.`;
+          return;
+        }
+        const hasCorrectAnswerInLoot = ch.loot.some(
+          (item) => item.text?.trim().toLowerCase() === ch.correctAnswer.trim().toLowerCase()
+        );
+        if (!hasCorrectAnswerInLoot) {
+          saveError = `Desafio ${i + 1}: a resposta correta precisa estar entre as opcoes da mochila.`;
+          return;
+        }
+      }
+      if (ch.type === 'ordering') {
+        if (!Array.isArray(ch.fragments) || ch.fragments.length < 2) {
+          saveError = `Desafio ${i + 1}: adicione pelo menos 2 fragmentos.`;
+          return;
+        }
+        const emptyFragment = ch.fragments.findIndex((fragment) => !fragment?.trim());
+        if (emptyFragment !== -1) {
+          saveError = `Desafio ${i + 1}: preencha o fragmento ${emptyFragment + 1}.`;
+          return;
+        }
+      }
     }
 
     saving = true;
@@ -129,6 +189,10 @@
 
     {#each challenges as challenge, i (challenge.id || i)}
       <div class="challenge-wrapper">
+        <div class="challenge-index">
+          <span class="challenge-badge">{i + 1}</span>
+          <span class="challenge-label">Pergunta {i + 1}</span>
+        </div>
         <ChallengeForm bind:challenge={challenges[i]} onremove={() => removeChallenge(i)} />
       </div>
     {/each}
@@ -283,6 +347,39 @@
     border: 2px dashed var(--color-border);
     border-radius: var(--radius-md);
     color: var(--color-muted);
+  }
+
+  .challenge-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .challenge-index {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 0.75rem 0.25rem;
+  }
+
+  .challenge-badge {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(139, 92, 246, 0.16);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+
+  .challenge-label {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   /* ── FAB Button ── */

@@ -1,0 +1,151 @@
+import { test, expect } from '@playwright/test';
+
+const MODULE_ID = 'module-1';
+
+const modulesListResponse = [
+  {
+    id: MODULE_ID,
+    title: 'Modulo E2E',
+    author: 'Teste',
+    created_at: '2026-03-13T00:00:00.000Z',
+    challenges: [{ count: 2 }],
+  },
+];
+
+const moduleSingleResponse = {
+  id: MODULE_ID,
+  title: 'Modulo E2E',
+  author: 'Teste',
+  created_at: '2026-03-13T00:00:00.000Z',
+};
+
+const challengesResponse = [
+  {
+    id: 'challenge-1',
+    module_id: MODULE_ID,
+    type: 'true_false',
+    prompt: 'Primeira pergunta',
+    difficulty: 1,
+    sort_order: 1,
+    data: {
+      correctAnswer: true,
+      explanation: 'Primeira explicacao',
+      monster: { name: 'Monstro de Teste', sprite: 'monster_test' },
+    },
+  },
+  {
+    id: 'challenge-2',
+    module_id: MODULE_ID,
+    type: 'multiple_choice',
+    prompt: 'Pergunta sem ids nas alternativas',
+    difficulty: 1,
+    sort_order: 2,
+    data: {
+      monster: { name: 'Monstro de Teste', sprite: 'monster_test' },
+      options: [
+        { text: 'Alternativa errada', correct: false, feedback: '' },
+        { text: 'Alternativa certa', correct: true, feedback: '' },
+      ],
+    },
+  },
+  {
+    id: 'challenge-3',
+    module_id: MODULE_ID,
+    type: 'true_false',
+    prompt: 'Segunda pergunta',
+    difficulty: 1,
+    sort_order: 3,
+    data: {
+      correctAnswer: false,
+      explanation: 'Segunda explicacao',
+      monster: { name: 'Monstro de Teste', sprite: 'monster_test' },
+    },
+  },
+];
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/rest/v1/modules*', async (route, request) => {
+    const acceptHeader = request.headers().accept || '';
+    const url = new URL(request.url());
+    const isSingle = acceptHeader.includes('application/vnd.pgrst.object+json') || url.searchParams.has('id');
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(isSingle ? moduleSingleResponse : modulesListResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/challenges*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(challengesResponse),
+    });
+  });
+});
+
+async function getVisiblePrompt(page) {
+  for (let attempt = 0; attempt < 25; attempt++) {
+    for (const prompt of ['Primeira pergunta', 'Pergunta sem ids nas alternativas', 'Segunda pergunta']) {
+      if (await page.getByText(prompt, { exact: true }).isVisible()) {
+        return prompt;
+      }
+    }
+
+    await page.waitForTimeout(200);
+  }
+
+  throw new Error('Nenhuma pergunta esperada apareceu na tela.');
+}
+
+async function answerCurrentQuestionCorrectly(page) {
+  const prompt = await getVisiblePrompt(page);
+
+  if (prompt === 'Pergunta sem ids nas alternativas') {
+    await page.getByRole('button', { name: 'Alternativa certa' }).click();
+    await page.getByRole('button', { name: /Confirmar/i }).click();
+    return prompt;
+  }
+
+  const answer = prompt === 'Primeira pergunta' ? 'Verdadeiro' : 'Falso';
+  await page.getByRole('button', { name: answer }).click();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  return prompt;
+}
+
+test('entra no modulo sem loading infinito e avanca para a segunda pergunta', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByText('Modulo E2E')).toBeVisible();
+  await page.getByRole('button', { name: /Modulo E2E/i }).click();
+  await expect(page.getByText('Carregando desafios...')).toHaveCount(0);
+
+  const promptBefore = await getVisiblePrompt(page);
+  await answerCurrentQuestionCorrectly(page);
+
+  await expect(page.getByText('2/3')).toBeVisible({ timeout: 5000 });
+  const promptAfter = await getVisiblePrompt(page);
+
+  expect(promptAfter).not.toBe(promptBefore);
+});
+
+test('consegue renderizar e responder multiple choice mesmo quando o Supabase nao envia ids nas opcoes', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: /Modulo E2E/i }).click();
+  while ((await getVisiblePrompt(page)) !== 'Pergunta sem ids nas alternativas') {
+    await answerCurrentQuestionCorrectly(page);
+  }
+
+  await expect(page.getByRole('button', { name: 'Alternativa certa' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Alternativa certa' }).click();
+  await page.getByRole('button', { name: /Confirmar/i }).click();
+
+  await expect(page.getByText('2/3')).toBeVisible({ timeout: 5000 });
+  const promptAfter = await getVisiblePrompt(page);
+
+  await expect(page.getByText('Pergunta sem ids nas alternativas')).toHaveCount(0);
+  expect(promptAfter).not.toBe('Pergunta sem ids nas alternativas');
+});

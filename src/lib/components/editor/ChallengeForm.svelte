@@ -3,7 +3,6 @@
 
   let { challenge = $bindable(), onremove } = $props();
 
-  // Handlers para opções dinâmicas (múltipla escolha)
   function addOption() {
     if (!challenge.options) challenge.options = [];
     challenge.options = [...challenge.options, { text: '', correct: false, feedback: '' }];
@@ -13,7 +12,6 @@
     challenge.options = challenge.options.filter((_, i) => i !== index);
   }
 
-  // Handlers para loot (drag_drop)
   function addLoot() {
     if (!challenge.loot) challenge.loot = [];
     challenge.loot = [...challenge.loot, { text: '', correct: false }];
@@ -23,7 +21,6 @@
     challenge.loot = challenge.loot.filter((_, i) => i !== index);
   }
 
-  // Handlers para fragmentos (ordering)
   function addFragment() {
     if (!challenge.fragments) challenge.fragments = [];
     challenge.fragments = [...challenge.fragments, ''];
@@ -33,25 +30,90 @@
     challenge.fragments = challenge.fragments.filter((_, i) => i !== index);
   }
 
-  // Quando muda o tipo, reseta campos específicos
+  function addTrueFalseStatement() {
+    if (!challenge.statements) challenge.statements = [];
+    challenge.statements = [...challenge.statements, { text: '', correctAnswer: true }];
+  }
+
+  function removeTrueFalseStatement(index) {
+    challenge.statements = challenge.statements.filter((_, i) => i !== index);
+  }
+
+  function updateTrueFalseText(index, value) {
+    challenge.statements = challenge.statements.map((statement, i) =>
+      i === index ? { ...statement, text: value } : statement
+    );
+  }
+
+  function updateTrueFalseAnswer(index, value) {
+    challenge.statements = challenge.statements.map((statement, i) =>
+      i === index ? { ...statement, correctAnswer: value === 'true' } : statement
+    );
+  }
+
+  function normalizeTrueFalseChallenge() {
+    if (challenge.type !== 'true_false') return;
+    if (Array.isArray(challenge.statements) && challenge.statements.length > 0) return;
+
+    challenge.statements = [
+      {
+        text: challenge.prompt || '',
+        correctAnswer: typeof challenge.correctAnswer === 'boolean' ? challenge.correctAnswer : true,
+      },
+    ];
+
+    challenge.prompt = 'Marque verdadeiro ou falso para cada afirmacao.';
+    delete challenge.correctAnswer;
+  }
+
+  $effect(() => {
+    normalizeTrueFalseChallenge();
+  });
+
   function handleTypeChange(newType) {
-    const base = { type: newType, prompt: challenge.prompt, difficulty: challenge.difficulty, monster: challenge.monster || { name: 'Monstro', sprite: 'monster_01' } };
+    const base = {
+      type: newType,
+      prompt: challenge.prompt,
+      difficulty: challenge.difficulty,
+      monster: challenge.monster || { name: 'Monstro', sprite: 'monster_01' },
+    };
 
     if (newType === 'drag_drop') {
-      Object.assign(challenge, base, { correctAnswer: '', loot: [{ text: '', correct: true }, { text: '', correct: false }] });
+      Object.assign(challenge, base, {
+        correctAnswer: '',
+        loot: [{ text: '', correct: true }, { text: '', correct: false }],
+        hint: '',
+      });
     } else if (newType === 'multiple_choice') {
-      Object.assign(challenge, base, { options: [{ text: '', correct: true, feedback: '' }, { text: '', correct: false, feedback: '' }] });
+      Object.assign(challenge, base, {
+        options: [{ text: '', correct: true, feedback: '' }, { text: '', correct: false, feedback: '' }],
+      });
     } else if (newType === 'true_false') {
-      Object.assign(challenge, base, { correctAnswer: true, explanation: '' });
+      Object.assign(challenge, base, {
+        prompt: challenge.prompt || 'Marque verdadeiro ou falso para cada afirmacao.',
+        statements: [{ text: '', correctAnswer: true }],
+        hint: '',
+      });
     } else if (newType === 'ordering') {
-      Object.assign(challenge, base, { fragments: ['', ''], shuffled: true });
+      Object.assign(challenge, base, { fragments: ['', ''], shuffled: true, hint: '' });
     }
 
-    // Limpa campos que não pertencem ao novo tipo
-    if (newType !== 'drag_drop') { delete challenge.loot; delete challenge.correctAnswer; delete challenge.hint; }
-    if (newType !== 'multiple_choice') { delete challenge.options; }
-    if (newType !== 'true_false') { delete challenge.explanation; if (newType !== 'drag_drop') delete challenge.correctAnswer; }
-    if (newType !== 'ordering') { delete challenge.fragments; delete challenge.shuffled; }
+    if (!['drag_drop', 'true_false', 'ordering'].includes(newType)) {
+      delete challenge.loot;
+      delete challenge.correctAnswer;
+      delete challenge.hint;
+    }
+    if (newType !== 'multiple_choice') {
+      delete challenge.options;
+    }
+    if (newType !== 'true_false') {
+      delete challenge.statements;
+      if (newType !== 'drag_drop') delete challenge.correctAnswer;
+    }
+    if (newType !== 'ordering') {
+      delete challenge.fragments;
+      delete challenge.shuffled;
+    }
 
     challenge.type = newType;
   }
@@ -62,7 +124,11 @@
     <textarea
       class="field-input google-textarea prompt-input"
       bind:value={challenge.prompt}
-      placeholder={challenge.type === 'drag_drop' ? 'Use _____ para indicar a lacuna' : 'Digite a pergunta...'}
+      placeholder={challenge.type === 'drag_drop'
+        ? 'Use _____ para indicar a lacuna'
+        : challenge.type === 'true_false'
+          ? 'Digite a instrucao do desafio...'
+          : 'Digite a pergunta...'}
       rows="1"
     ></textarea>
     <div class="header-actions">
@@ -78,47 +144,88 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Opções Falsas (Loot da Mochila)</label>
+        <label class="field-label">Opcoes Falsas (Loot da Mochila)</label>
         {#each challenge.loot || [] as item, i}
           <div class="option-row">
-            <span class="icon">🔹</span>
-            <input class="field-input google-input flex-1" bind:value={item.text} placeholder="Opção falsa {i + 1}" />
-            <button class="icon-btn danger" onclick={() => removeLoot(i)}>✕</button>
+            <span class="icon">-</span>
+            <input class="field-input google-input flex-1" bind:value={item.text} placeholder="Opcao falsa {i + 1}" />
+            <button class="icon-btn danger" onclick={() => removeLoot(i)}>x</button>
           </div>
         {/each}
-        <button class="mini-btn add" onclick={addLoot}>+ Adicionar opção</button>
+        <button class="mini-btn add" onclick={addLoot}>+ Adicionar opcao</button>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Bizu ao errar</label>
+        <textarea
+          class="field-input google-textarea feedback-textarea"
+          bind:value={challenge.hint}
+          placeholder="Dica curta para ajudar o aluno a descobrir a resposta"
+          rows="2"
+        ></textarea>
       </div>
 
     {:else if challenge.type === 'multiple_choice'}
       <div class="field">
+        <label class="field-label">Alternativas</label>
         {#each challenge.options || [] as opt, i}
           <div class="option-block">
             <div class="option-row">
               <label class="radio-label">
-                <!-- Truque visual: radio button ao inves de checkbox -->
                 <input type="radio" name="correct_{challenge.id || Math.random()}" checked={opt.correct} onchange={() => {
-                  challenge.options.forEach(o => o.correct = false);
+                  challenge.options.forEach((o) => o.correct = false);
                   opt.correct = true;
                 }} />
               </label>
-              <input class="field-input google-input flex-1" bind:value={opt.text} placeholder="Opção {i + 1}" />
-              <button class="icon-btn danger" onclick={() => removeOption(i)}>✕</button>
+              <input class="field-input google-input flex-1" bind:value={opt.text} placeholder="Opcao {i + 1}" />
+              <button class="icon-btn danger" onclick={() => removeOption(i)}>x</button>
             </div>
+            <input
+              class="field-input google-input feedback-input"
+              bind:value={opt.feedback}
+              placeholder="Bizu exibido se o aluno marcar esta alternativa errada"
+            />
           </div>
         {/each}
         <div class="option-row">
-           <span class="icon radio-placeholder">○</span>
-           <button class="mini-btn add-inline" onclick={addOption}>Adicionar opção</button>
+          <span class="icon radio-placeholder">o</span>
+          <button class="mini-btn add-inline" onclick={addOption}>Adicionar opcao</button>
         </div>
       </div>
 
     {:else if challenge.type === 'true_false'}
-      <div class="field line-focus">
-        <label class="field-label">Resposta Correta</label>
-        <select class="field-input google-input small-input" bind:value={challenge.correctAnswer}>
-          <option value={true}>✅ Verdadeiro</option>
-          <option value={false}>❌ Falso</option>
-        </select>
+      <div class="field">
+        <label class="field-label">Afirmacoes</label>
+        {#each challenge.statements || [] as statement, i}
+          <div class="true-false-row">
+            <input
+              class="field-input google-input flex-1"
+              value={statement.text}
+              oninput={(e) => updateTrueFalseText(i, e.target.value)}
+              placeholder="Afirmacao {i + 1}"
+            />
+            <select
+              class="field-input google-input small-input tf-select"
+              value={statement.correctAnswer ? 'true' : 'false'}
+              onchange={(e) => updateTrueFalseAnswer(i, e.target.value)}
+            >
+              <option value="true">Verdadeiro</option>
+              <option value="false">Falso</option>
+            </select>
+            <button class="icon-btn danger" onclick={() => removeTrueFalseStatement(i)}>x</button>
+          </div>
+        {/each}
+        <button class="mini-btn add" onclick={addTrueFalseStatement}>+ Adicionar afirmacao</button>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Bizu ao errar</label>
+        <textarea
+          class="field-input google-textarea feedback-textarea"
+          bind:value={challenge.hint}
+          placeholder="Dica curta para ajudar o aluno a corrigir a afirmacao"
+          rows="2"
+        ></textarea>
       </div>
 
     {:else if challenge.type === 'ordering'}
@@ -128,10 +235,20 @@
           <div class="option-row">
             <span class="order-num">{i + 1}.</span>
             <input class="field-input google-input flex-1" bind:value={challenge.fragments[i]} placeholder="Fragmento {i + 1}" />
-            <button class="icon-btn danger" onclick={() => removeFragment(i)}>✕</button>
+            <button class="icon-btn danger" onclick={() => removeFragment(i)}>x</button>
           </div>
         {/each}
         <button class="mini-btn add" onclick={addFragment}>+ Adicionar fragmento</button>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Bizu ao errar</label>
+        <textarea
+          class="field-input google-textarea feedback-textarea"
+          bind:value={challenge.hint}
+          placeholder="Dica curta para ajudar o aluno a ordenar a frase"
+          rows="2"
+        ></textarea>
       </div>
     {/if}
   </div>
@@ -141,13 +258,13 @@
       <div class="field inline">
         <label class="field-label-small">Dificuldade:</label>
         <select class="field-input google-input small-input" bind:value={challenge.difficulty}>
-          <option value={1}>Fácil</option>
-          <option value={2}>Médio</option>
-          <option value={3}>Difícil</option>
+          <option value={1}>Facil</option>
+          <option value={2}>Medio</option>
+          <option value={3}>Dificil</option>
         </select>
       </div>
     </div>
-    
+
     <div class="footer-actions">
       <button class="icon-btn danger remove-card" onclick={onremove} title="Excluir Pergunta">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
@@ -171,7 +288,6 @@
     overflow: hidden;
   }
 
-  /* Efeito de foco tipo Google Forms */
   .challenge-form:focus-within {
     border-left-color: var(--color-primary);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -191,7 +307,6 @@
     padding: 0 1.5rem 1rem 1.5rem;
   }
 
-  /* ── Google Forms Style Inputs ── */
   .google-input, .google-textarea {
     background: transparent;
     border: none;
@@ -208,7 +323,7 @@
     outline: none;
     border-bottom-color: var(--color-primary);
     border-bottom-width: 2px;
-    padding-bottom: 0.4rem; /* compensar 2px border */
+    padding-bottom: 0.4rem;
   }
 
   .prompt-input {
@@ -226,13 +341,12 @@
     border-bottom-width: 1px;
     padding-bottom: 0.5rem;
   }
-  
+
   .small-input {
     font-size: 0.9rem;
     padding: 0.2rem;
   }
 
-  /* ── Fields ── */
   .field {
     display: flex;
     flex-direction: column;
@@ -262,12 +376,12 @@
     flex: 1;
   }
 
-  /* ── Options/Fragments ── */
-  .option-row {
+  .option-row,
+  .true-false-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
   }
 
   .icon {
@@ -301,7 +415,28 @@
     accent-color: var(--color-primary);
   }
 
-  /* ── Mini buttons ── */
+  .option-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.015);
+  }
+
+  .feedback-input,
+  .feedback-textarea {
+    font-size: 0.92rem;
+    color: var(--color-muted);
+  }
+
+  .feedback-textarea {
+    resize: vertical;
+    min-height: 72px;
+  }
+
   .mini-btn {
     background: none;
     border: none;
@@ -333,8 +468,7 @@
     border-bottom: 1px solid var(--color-primary);
     padding-bottom: 0.4rem;
   }
-  
-  /* ── Footer ── */
+
   .card-footer {
     display: flex;
     justify-content: space-between;
@@ -343,12 +477,12 @@
     border-top: 1px solid var(--color-border);
     background: rgba(0,0,0,0.1);
   }
-  
+
   .footer-tools {
     display: flex;
     gap: 1.5rem;
   }
-  
+
   .icon-btn {
     background: none;
     border: none;
@@ -361,12 +495,12 @@
     justify-content: center;
     transition: background-color var(--transition-fast), color var(--transition-fast);
   }
-  
+
   .icon-btn:hover {
     background: rgba(255, 255, 255, 0.05);
     color: var(--color-text);
   }
-  
+
   .icon-btn.danger:hover {
     background: rgba(248, 113, 113, 0.1);
     color: var(--color-wrong);
@@ -374,5 +508,9 @@
 
   .remove-card {
     padding: 0.5rem;
+  }
+
+  .tf-select {
+    min-width: 140px;
   }
 </style>

@@ -94,11 +94,14 @@ function prepareChallenge(challenge) {
   switch (prepared.type) {
     case 'drag_drop':
       // Embaralha a ordem do loot
-      prepared.loot = shuffle(prepared.loot);
+      prepared.loot = Array.isArray(prepared.loot) ? shuffle(prepared.loot) : [];
       break;
 
     case 'ordering':
       // Embaralha fragments se shuffled = true
+      if (!Array.isArray(prepared.fragments)) {
+        prepared.fragments = [];
+      }
       if (prepared.shuffled !== false) {
         prepared.displayFragments = shuffle(prepared.fragments);
       } else {
@@ -108,7 +111,7 @@ function prepareChallenge(challenge) {
 
     case 'multiple_choice':
       // Embaralha ordem das opções
-      prepared.options = shuffle(prepared.options);
+      prepared.options = Array.isArray(prepared.options) ? shuffle(prepared.options) : [];
       break;
   }
 

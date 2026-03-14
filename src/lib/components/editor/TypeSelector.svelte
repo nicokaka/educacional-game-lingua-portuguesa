@@ -4,7 +4,7 @@
   const types = [
     { value: 'drag_drop', label: '🎯 Arrastar e Soltar', desc: 'Preencher lacuna arrastando a palavra' },
     { value: 'multiple_choice', label: '📝 Múltipla Escolha', desc: 'Escolher entre 4 alternativas' },
-    { value: 'true_false', label: '✅ Verdadeiro ou Falso', desc: 'Julgar se a afirmação é correta' },
+    { value: 'true_false', label: '✅ Verdadeiro ou Falso', desc: 'Marcar cada afirmação como verdadeira ou falsa' },
     { value: 'ordering', label: '🔢 Ordenação', desc: 'Colocar fragmentos na ordem certa' },
   ];
 

@@ -1,8 +1,8 @@
 <script>
-  let { index = 0, class: className = '' } = $props();
+  let { seed = 0, class: className = '' } = $props();
 
   // 3 tipos de monstros
-  let type = $derived(index % 3);
+  let type = $derived(seed % 3);
 </script>
 
 <svg viewBox="0 0 120 120" class={className} aria-label="Monstro">

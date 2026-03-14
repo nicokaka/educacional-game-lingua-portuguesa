@@ -115,7 +115,16 @@ function validateByType(challenge, pos) {
     }
 
     case 'true_false': {
-      if (typeof challenge.correctAnswer !== 'boolean') {
+      if (Array.isArray(challenge.statements) && challenge.statements.length > 0) {
+        challenge.statements.forEach((statement, index) => {
+          if (!statement.text || typeof statement.text !== 'string') {
+            throw new Error(`${label}: a afirmacao #${index + 1} precisa ter texto.`);
+          }
+          if (typeof statement.correctAnswer !== 'boolean') {
+            throw new Error(`${label}: a afirmacao #${index + 1} precisa ter correctAnswer true ou false.`);
+          }
+        });
+      } else if (typeof challenge.correctAnswer !== 'boolean') {
         throw new Error(`${label}: "correctAnswer" deve ser true ou false.`);
       }
       break;

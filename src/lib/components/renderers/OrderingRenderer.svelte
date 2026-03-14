@@ -1,27 +1,27 @@
 <script>
   let { challenge, onAnswer } = $props();
+
   let answered = $state(false);
-
-  // Cria array de fragmentos na ordem atual do jogador
   let playerOrder = $state([]);
+  let dragIndex = $state(-1);
+  let feedbackText = $state('');
 
-  // Reinicializa quando o challenge muda
   $effect(() => {
     playerOrder = [...challenge.displayFragments];
     answered = false;
+    dragIndex = -1;
+    feedbackText = '';
   });
-  let dragIndex = $state(-1);
 
   function onDragStart(index) {
     if (answered) return;
     dragIndex = index;
   }
 
-  function onDragOver(e, index) {
-    e.preventDefault();
+  function onDragOver(event, index) {
+    event.preventDefault();
     if (dragIndex < 0 || dragIndex === index) return;
 
-    // Reordena
     const newOrder = [...playerOrder];
     const [dragged] = newOrder.splice(dragIndex, 1);
     newOrder.splice(index, 0, dragged);
@@ -35,17 +35,20 @@
 
   function confirm() {
     if (answered) return;
+
     answered = true;
     const result = onAnswer(playerOrder);
 
     if (!result.correct) {
+      feedbackText = result.feedback || 'Bizu: tente montar a frase na ordem em que ela faria sentido quando lida em voz alta.';
+
       setTimeout(() => {
         answered = false;
-      }, 2000);
+        feedbackText = '';
+      }, 2500);
     }
   }
 
-  // Verifica se o fragmento está na posição correta
   function isInCorrectPos(index) {
     if (!answered) return false;
     return playerOrder[index] === challenge.fragments[index];
@@ -69,7 +72,7 @@
         class:wrong={isInWrongPos(index)}
         draggable="true"
         ondragstart={() => onDragStart(index)}
-        ondragover={(e) => onDragOver(e, index)}
+        ondragover={(event) => onDragOver(event, index)}
         ondragend={onDragEnd}
         role="listitem"
       >
@@ -83,8 +86,15 @@
 
   {#if !answered}
     <button class="confirm-btn" onclick={confirm}>
-      Confirmar ✓
+      Confirmar
     </button>
+  {/if}
+
+  {#if feedbackText}
+    <div class="bizu-box">
+      <span class="bizu-label">BIZU</span>
+      <p>{feedbackText}</p>
+    </div>
   {/if}
 </div>
 
@@ -183,5 +193,35 @@
     background: var(--color-primary-hover, #7c3aed);
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  }
+
+  .bizu-box {
+    width: 100%;
+    max-width: 560px;
+    padding: 1rem 1.15rem;
+    border-radius: 14px;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.08));
+    color: #fde68a;
+    text-align: left;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .bizu-label {
+    display: inline-block;
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #fcd34d;
+  }
+
+  .bizu-box p {
+    line-height: 1.55;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 </style>

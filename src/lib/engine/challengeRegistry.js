@@ -28,6 +28,15 @@ const validators = {
   },
 
   true_false: (challenge, answer) => {
+    if (Array.isArray(challenge.statements) && challenge.statements.length > 0) {
+      if (!Array.isArray(answer) || answer.length !== challenge.statements.length) return false;
+      return challenge.statements.every((statement, index) => answer[index] === statement.correctAnswer);
+    }
+
+    if (Array.isArray(answer)) {
+      return answer.length === 1 && answer[0] === challenge.correctAnswer;
+    }
+
     return answer === challenge.correctAnswer;
   },
 

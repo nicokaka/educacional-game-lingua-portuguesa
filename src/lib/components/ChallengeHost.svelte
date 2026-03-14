@@ -8,11 +8,9 @@
 
 <div class="challenge-host">
   {#if challenge && RendererComponent}
-    {#key challenge.id}
-      <div class="renderer-wrapper" style="animation: slideIn 0.4s ease;">
-        <RendererComponent {challenge} {onAnswer} />
-      </div>
-    {/key}
+    <div class="renderer-wrapper" style="animation: slideIn 0.4s ease;">
+      <RendererComponent {challenge} {onAnswer} />
+    </div>
   {:else}
     <div class="no-challenge">
       <p>Nenhum desafio carregado.</p>

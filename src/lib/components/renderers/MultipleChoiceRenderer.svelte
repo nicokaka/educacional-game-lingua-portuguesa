@@ -1,5 +1,6 @@
 <script>
   let { challenge, onAnswer } = $props();
+
   let selectedId = $state(null);
   let feedbackText = $state('');
   let answered = $state(false);
@@ -7,21 +8,23 @@
   function select(optionId) {
     if (answered) return;
     selectedId = optionId;
+    feedbackText = '';
   }
 
   function confirm() {
     if (!selectedId || answered) return;
+
     answered = true;
     const result = onAnswer(selectedId);
+
     if (!result.correct) {
-      const opt = challenge.options.find(o => o.id === selectedId);
-      feedbackText = opt?.feedback || 'Resposta incorreta. Tente novamente!';
-      // Permite tentar de novo após feedback
+      feedbackText = result.feedback || 'Bizu: leia com calma e elimine a alternativa que nao combina com o enunciado.';
+
       setTimeout(() => {
         answered = false;
         selectedId = null;
         feedbackText = '';
-      }, 2000);
+      }, 2500);
     }
   }
 </script>
@@ -46,12 +49,13 @@
 
   {#if selectedId && !answered}
     <button class="confirm-btn" onclick={confirm}>
-      Confirmar ✓
+      Confirmar
     </button>
   {/if}
 
   {#if feedbackText}
-    <div class="feedback-box feedback-wrong-box">
+    <div class="bizu-box">
+      <span class="bizu-label">BIZU</span>
       <p>{feedbackText}</p>
     </div>
   {/if}
@@ -140,18 +144,29 @@
     box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
   }
 
-  .feedback-box {
-    padding: 0.75rem 1.25rem;
-    border-radius: 10px;
-    max-width: 500px;
-    text-align: center;
-    animation: fadeIn 0.3s ease;
+  .bizu-box {
+    width: 100%;
+    max-width: 560px;
+    padding: 1rem 1.15rem;
+    border-radius: 14px;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.08));
+    color: #fde68a;
+    text-align: left;
+    animation: fadeIn 0.25s ease;
   }
 
-  .feedback-wrong-box {
-    background: rgba(248, 113, 113, 0.1);
-    border: 1px solid rgba(248, 113, 113, 0.3);
-    color: #fca5a5;
+  .bizu-label {
+    display: inline-block;
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #fcd34d;
+  }
+
+  .bizu-box p {
+    line-height: 1.55;
   }
 
   @keyframes fadeIn {

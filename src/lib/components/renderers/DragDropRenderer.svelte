@@ -1,111 +1,191 @@
 <script>
   let { challenge, onAnswer } = $props();
+
   let answered = $state(false);
-
-  // State do drag
-  let draggingIndex = $state(-1);
-  let dragPos = $state({ x: 0, y: 0 });
-  let startPos = { x: 0, y: 0 };
-  let dragEl = null;
-
-  // Backpack local (cópia dos loot items) — $derived para reagir ao challenge mudar
   let items = $state([]);
   let slotted = $state(null);
+  let answerWasCorrect = $state(null);
+  let draggingIndex = $state(null);
+  let isDropZoneActive = $state(false);
+  let suppressClick = $state(false);
+  let feedbackText = $state('');
+  let ghost = $state({
+    visible: false,
+    text: '',
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
 
-  // Reinicializa quando o challenge muda
+  let dropZoneEl = null;
+  let dragPointerId = null;
+  let dragOffset = { x: 0, y: 0 };
+  let dragStartPoint = { x: 0, y: 0 };
+
   $effect(() => {
     items = [...challenge.loot];
     slotted = null;
     answered = false;
+    answerWasCorrect = null;
+    feedbackText = '';
+    clearDragState();
   });
 
-  function onPointerDown(e, index) {
-    if (answered) return;
-    draggingIndex = index;
-    const rect = e.currentTarget.getBoundingClientRect();
-    startPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    dragEl = e.currentTarget;
-    dragEl.setPointerCapture(e.pointerId);
-    dragPos = { x: 0, y: 0 };
-  }
-
-  function onPointerMove(e) {
-    if (draggingIndex < 0) return;
-    const rect = dragEl.parentElement.getBoundingClientRect();
-    dragPos = {
-      x: e.clientX - rect.left - startPos.x - (draggingIndex * 0), // offset
-      y: e.clientY - rect.top - startPos.y,
+  function clearDragState() {
+    draggingIndex = null;
+    dragPointerId = null;
+    isDropZoneActive = false;
+    ghost = {
+      visible: false,
+      text: '',
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
     };
   }
 
-  function onPointerUp(e) {
-    if (draggingIndex < 0) return;
+  function placeItem(index) {
+    if (answered || index === null || index < 0 || index >= items.length) return;
 
-    // Hit-test: verifica se soltou na drop zone
-    const dropZone = document.querySelector('.drop-zone');
-    if (dropZone) {
-      const rect = dropZone.getBoundingClientRect();
-      if (
-        e.clientX >= rect.left && e.clientX <= rect.right &&
-        e.clientY >= rect.top && e.clientY <= rect.bottom
-      ) {
-        // Soltar na lacuna
-        const item = items[draggingIndex];
-        slotted = item;
-        items = items.filter((_, i) => i !== draggingIndex);
-      }
+    const selectedItem = items[index];
+    if (!selectedItem) return;
+
+    if (slotted) {
+      items = [...items.filter((_, currentIndex) => currentIndex !== index), slotted];
+    } else {
+      items = items.filter((_, currentIndex) => currentIndex !== index);
     }
 
-    draggingIndex = -1;
-    dragPos = { x: 0, y: 0 };
+    slotted = selectedItem;
   }
 
   function removeSlot() {
     if (answered || !slotted) return;
     items = [...items, slotted];
     slotted = null;
+    answerWasCorrect = null;
+  }
+
+  function isPointerInsideDropZone(clientX, clientY) {
+    if (!dropZoneEl) return false;
+    const rect = dropZoneEl.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+  }
+
+  function handlePointerDown(event, index) {
+    if (answered) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    draggingIndex = index;
+    dragPointerId = event.pointerId;
+    dragOffset = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+    dragStartPoint = {
+      x: event.clientX,
+      y: event.clientY,
+    };
+    suppressClick = false;
+
+    ghost = {
+      visible: true,
+      text: items[index]?.text || '',
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function handlePointerMove(event) {
+    if (dragPointerId !== event.pointerId || draggingIndex === null) return;
+
+    const movedEnough =
+      Math.abs(event.clientX - dragStartPoint.x) > 6 ||
+      Math.abs(event.clientY - dragStartPoint.y) > 6;
+
+    if (movedEnough) {
+      suppressClick = true;
+    }
+
+    ghost = {
+      ...ghost,
+      x: event.clientX - dragOffset.x,
+      y: event.clientY - dragOffset.y,
+    };
+
+    isDropZoneActive = isPointerInsideDropZone(event.clientX, event.clientY);
+  }
+
+  function handlePointerUp(event) {
+    if (dragPointerId !== event.pointerId || draggingIndex === null) return;
+
+    if (suppressClick && isPointerInsideDropZone(event.clientX, event.clientY)) {
+      placeItem(draggingIndex);
+    }
+
+    clearDragState();
+  }
+
+  function handlePointerCancel() {
+    clearDragState();
+  }
+
+  function handleChipClick(index) {
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
+
+    placeItem(index);
   }
 
   function confirm() {
     if (!slotted || answered) return;
+
     answered = true;
     const result = onAnswer(slotted.text);
+    answerWasCorrect = result.correct;
 
     if (!result.correct) {
+      feedbackText = result.feedback || 'Bizu: volte para o enunciado e pense em qual palavra completa a frase com sentido.';
+
       setTimeout(() => {
         answered = false;
-        // Devolve item à mochila
+        answerWasCorrect = null;
+        feedbackText = '';
         items = [...items, slotted];
         slotted = null;
-      }, 1500);
+      }, 2200);
     }
-  }
-
-  // Renderiza o prompt com a lacuna destacada
-  function renderPrompt() {
-    const parts = challenge.prompt.split('_____');
-    return parts;
   }
 
   let promptParts = $derived(challenge.prompt.split('_____'));
 </script>
 
 <div class="renderer drag-drop-renderer">
-  <!-- Frase com lacuna -->
   <div class="phrase-container">
     <span class="phrase-text">{promptParts[0]}</span>
     <button
       type="button"
       class="drop-zone"
       class:filled={slotted}
-      class:correct={answered && slotted?.correct}
-      class:wrong={answered && !slotted?.correct}
+      class:drop-active={isDropZoneActive}
+      class:correct={answered && answerWasCorrect === true}
+      class:wrong={answered && answerWasCorrect === false}
+      bind:this={dropZoneEl}
       onclick={removeSlot}
     >
       {#if slotted}
         {slotted.text}
       {:else}
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        Solte aqui
       {/if}
     </button>
     {#if promptParts[1]}
@@ -113,31 +193,50 @@
     {/if}
   </div>
 
-  <!-- Mochila -->
   <div class="backpack">
-    <p class="backpack-label">🎒 Mochila</p>
+    <p class="backpack-label">Mochila</p>
     <div class="backpack-items">
       {#each items as item, index (item.text + index)}
-        <div
+        <button
+          type="button"
           class="word-chip"
           class:dragging={draggingIndex === index}
-          style={draggingIndex === index ? `transform: translate(${dragPos.x}px, ${dragPos.y}px); z-index: 100;` : ''}
-          onpointerdown={(e) => onPointerDown(e, index)}
-          onpointermove={onPointerMove}
-          onpointerup={onPointerUp}
-          role="button"
-          tabindex="0"
+          onpointerdown={(event) => handlePointerDown(event, index)}
+          onpointermove={handlePointerMove}
+          onpointerup={handlePointerUp}
+          onpointercancel={handlePointerCancel}
+          onlostpointercapture={handlePointerCancel}
+          onclick={() => handleChipClick(index)}
+          disabled={answered}
         >
           {item.text}
-        </div>
+        </button>
       {/each}
     </div>
+    <p class="backpack-hint">Arraste uma opcao ate a lacuna ou clique para preencher.</p>
   </div>
 
   {#if slotted && !answered}
     <button class="confirm-btn" onclick={confirm}>
-      Confirmar ✓
+      Confirmar
     </button>
+  {/if}
+
+  {#if feedbackText}
+    <div class="bizu-box">
+      <span class="bizu-label">BIZU</span>
+      <p>{feedbackText}</p>
+    </div>
+  {/if}
+
+  {#if ghost.visible}
+    <div
+      class="drag-ghost"
+      style={`left:${ghost.x}px; top:${ghost.y}px; width:${ghost.width}px; min-height:${ghost.height}px;`}
+      aria-hidden="true"
+    >
+      {ghost.text}
+    </div>
   {/if}
 </div>
 
@@ -154,50 +253,66 @@
     color: var(--color-text, #e2e8f0);
     line-height: 2;
     text-align: center;
-    max-width: 600px;
+    max-width: 680px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 0.25rem;
+    gap: 0.45rem;
+  }
+
+  .phrase-text {
+    word-break: break-word;
   }
 
   .drop-zone {
-    display: inline-block;
-    min-width: 120px;
-    padding: 0.4rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 140px;
+    min-height: 52px;
+    padding: 0.55rem 1.1rem;
     border: 2px dashed var(--color-primary, #8b5cf6);
-    border-radius: 8px;
+    border-radius: 12px;
     background: rgba(139, 92, 246, 0.08);
     text-align: center;
     transition: all 0.2s ease;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--color-text, #e2e8f0);
   }
 
   .drop-zone.filled {
     border-style: solid;
-    background: rgba(139, 92, 246, 0.15);
+    background: rgba(139, 92, 246, 0.16);
+  }
+
+  .drop-zone.drop-active {
+    transform: scale(1.03);
+    border-color: #c084fc;
+    box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.12);
   }
 
   .drop-zone.correct {
     border-color: #4ade80;
     background: rgba(74, 222, 128, 0.15);
+    color: #dcfce7;
     animation: glow-correct 0.3s ease-in-out alternate 2;
   }
 
   .drop-zone.wrong {
     border-color: #f87171;
     background: rgba(248, 113, 113, 0.15);
+    color: #fecaca;
     animation: glow-wrong 0.3s ease-in-out alternate 2;
   }
 
   .backpack {
+    width: min(100%, 640px);
     background: var(--color-surface, #1e293b);
     border: 1px solid var(--color-border, #334155);
-    border-radius: 16px;
+    border-radius: 18px;
     padding: 1.25rem;
-    min-width: 300px;
   }
 
   .backpack-label {
@@ -211,35 +326,47 @@
   .backpack-items {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
-    position: relative;
+    gap: 0.75rem;
+    justify-content: center;
+    align-items: center;
   }
 
   .word-chip {
-    padding: 0.6rem 1.2rem;
+    padding: 0.7rem 1.25rem;
     border: 2px solid var(--color-border, #334155);
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--color-bg, #0f172a);
     color: var(--color-text, #e2e8f0);
     font-size: 1rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: grab;
-    user-select: none;
     touch-action: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    will-change: transform;
+    user-select: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
   }
 
-  .word-chip:hover {
+  .word-chip:hover:not(:disabled) {
     border-color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.18);
+    transform: translateY(-1px);
   }
 
   .word-chip.dragging {
-    cursor: grabbing;
-    border-color: var(--color-primary, #8b5cf6);
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
-    position: relative;
+    opacity: 0.18;
+    transform: scale(0.98);
+    box-shadow: none;
+  }
+
+  .word-chip:disabled {
+    cursor: default;
+    opacity: 0.8;
+  }
+
+  .backpack-hint {
+    margin-top: 0.9rem;
+    color: var(--color-muted, #94a3b8);
+    font-size: 0.92rem;
+    text-align: center;
   }
 
   .confirm-btn {
@@ -258,5 +385,67 @@
     background: var(--color-primary-hover, #7c3aed);
     transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+  }
+
+  .bizu-box {
+    width: 100%;
+    max-width: 560px;
+    padding: 1rem 1.15rem;
+    border-radius: 14px;
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.08));
+    color: #fde68a;
+    text-align: left;
+    animation: fadeIn 0.25s ease;
+  }
+
+  .bizu-label {
+    display: inline-block;
+    margin-bottom: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #fcd34d;
+  }
+
+  .bizu-box p {
+    line-height: 1.55;
+  }
+
+  .drag-ghost {
+    position: fixed;
+    z-index: 1200;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.7rem 1.25rem;
+    border: 2px solid var(--color-primary, #8b5cf6);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.96);
+    color: var(--color-text, #e2e8f0);
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
+    pointer-events: none;
+  }
+
+  @media (max-width: 640px) {
+    .phrase-container {
+      font-size: 1.1rem;
+    }
+
+    .drop-zone {
+      min-width: 120px;
+      min-height: 48px;
+    }
+
+    .backpack {
+      padding: 1rem;
+    }
+
+    .word-chip {
+      width: 100%;
+      cursor: pointer;
+    }
   }
 </style>

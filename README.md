@@ -49,5 +49,6 @@ O projeto está pronto para Vercel. Basta conectar o repositório GitHub e confi
 
 ## 📚 Documentação Adicional
 
+- [Setup de Desenvolvimento](./docs/SETUP_DEV.md) - Passos diretos para configurar ambiente local.
 - [Manual do Professor](./docs/MANUAL_PROFESSOR.md) - Guia passo a passo de como criar e editar questões no jogo.
 - [Continuação e Roadmap](./CONTINUACAO.md) - Contexto completo da arquitetura e próximas tarefas.
