@@ -94,7 +94,7 @@ function preloadDefaultSounds() {
  * @param {string} name - identificador do som
  * @param {number} [volume=0.5] - volume (0 a 1)
  */
-export function playSound(name, volume = 0.5) {
+export function playSound(name, volume = 0.5, options = {}) {
   if (!audioCtx || !buffers[name]) return;
 
   // Resume context se estiver suspended (autoplay policy)
@@ -104,13 +104,100 @@ export function playSound(name, volume = 0.5) {
 
   const source = audioCtx.createBufferSource();
   const gainNode = audioCtx.createGain();
+  const attack = options.attack ?? 0.01;
+  const release = options.release ?? 0.08;
+  const playbackRate = options.playbackRate ?? 1;
+  const duration = options.duration ?? null;
+  const lowpassHz = options.lowpassHz ?? null;
+  const lowpassQ = options.lowpassQ ?? 0.8;
+  const now = audioCtx.currentTime;
 
   source.buffer = buffers[name];
-  gainNode.gain.value = volume;
+  source.playbackRate.value = playbackRate;
 
-  source.connect(gainNode);
+  // Envelope curto para deixar o feedback mais "snappy" e menos estridente.
+  gainNode.gain.setValueAtTime(0.0001, now);
+  gainNode.gain.linearRampToValueAtTime(volume, now + attack);
+
+  if (lowpassHz) {
+    const lowpassNode = audioCtx.createBiquadFilter();
+    lowpassNode.type = 'lowpass';
+    lowpassNode.frequency.setValueAtTime(lowpassHz, now);
+    lowpassNode.Q.value = lowpassQ;
+    source.connect(lowpassNode);
+    lowpassNode.connect(gainNode);
+  } else {
+    source.connect(gainNode);
+  }
   gainNode.connect(audioCtx.destination);
-  source.start(0);
+  source.start(now);
+
+  if (duration) {
+    const endAt = now + duration;
+    gainNode.gain.setValueAtTime(volume, endAt);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, endAt + release);
+    source.stop(endAt + release + 0.01);
+  }
+}
+
+function playSyntheticNote(frequency, duration, volume = 0.18, type = 'triangle') {
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(frequency, now);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(volume, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.02);
+}
+
+function playCorrectJingle() {
+  // Duas notas subindo: sensação positiva imediata.
+  playSound('correct', 0.24, {
+    playbackRate: 1.18,
+    duration: 0.13,
+    attack: 0.008,
+    release: 0.06,
+  });
+  setTimeout(() => {
+    playSound('correct', 0.22, {
+      playbackRate: 1.42,
+      duration: 0.12,
+      attack: 0.008,
+      release: 0.06,
+    });
+    playSyntheticNote(920, 0.12, 0.07, 'sine');
+  }, 92);
+}
+
+function playWrongJingle() {
+  // Erro mais "aveludado": grave, curto e sem timbre fino.
+  playSound('wrong', 0.28, {
+    playbackRate: 0.76,
+    duration: 0.22,
+    attack: 0.012,
+    release: 0.14,
+    lowpassHz: 1350,
+    lowpassQ: 0.75,
+  });
+  setTimeout(() => {
+    playSyntheticNote(240, 0.14, 0.05, 'triangle');
+  }, 42);
+  setTimeout(() => {
+    playSyntheticNote(185, 0.16, 0.045, 'sine');
+  }, 104);
 }
 
 /**
@@ -121,10 +208,10 @@ export function playSound(name, volume = 0.5) {
 export function dispatchFeedback(type, targetEl) {
   if (type === 'correct') {
     if (targetEl) glowCorrect(targetEl);
-    playSound('correct', 0.6);
+    playCorrectJingle();
   } else {
     screenShake();
     if (targetEl) glowWrong(targetEl);
-    playSound('wrong', 0.4);
+    playWrongJingle();
   }
 }

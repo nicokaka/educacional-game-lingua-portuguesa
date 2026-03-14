@@ -1,6 +1,6 @@
 # 🧭 Alquimia Verbal — Guia de Continuação
 
-> Última atualização: 14/03/2026 (deploy em produção no Vercel)
+> Última atualização: 14/03/2026 (produção publicada e documentação consolidada)
 > Deadline do estágio: **25/03/2026** (faltam ~11 dias)
 
 ---
@@ -32,6 +32,8 @@ Alquimia Verbal é um **jogo educacional gamificado de gramática portuguesa** p
 ---
 
 ## Status Atual
+
+O projeto está **praticamente concluído**. Neste momento, o sistema já está em produção, com fluxo completo de editor + jogo + PWA. A pendência real restante é a validação presencial no hardware/navegador final da escola.
 
 ### ✅ Pronto
 
@@ -86,7 +88,7 @@ Alquimia Verbal é um **jogo educacional gamificado de gramática portuguesa** p
 - [x] Atualizar `index.html` com meta tags PWA e SEO
 - [x] Deploy no Vercel (repositório conectado + env vars configuradas)
 - [x] Testar offline (Service Worker cacheia assets)
-- [ ] Testar em navegador de escola (Chrome/Edge)
+- [ ] Testar em navegador de escola (Chrome/Edge no hardware real do laboratório)
 
 #### Fase I — Documentação (prioridade média)
 - [x] Atualizar `README.md` com a nova arquitetura
@@ -114,7 +116,13 @@ Alquimia Verbal é um **jogo educacional gamificado de gramática portuguesa** p
 - HUD e feedback ajustados: shake da tela só no erro, impacto local no monstro/HP no acerto.
 - Pontuação final agora exibida como `pontos obtidos / pontos máximos do módulo`.
 - Responsividade refinada para telas menores (ex.: 1366x768).
+- Sons `.ogg` adicionados em `public/sounds/` para acerto, erro, vitória e derrota.
+- Seleção automática de monstros por módulo com sprites em `public/monstro*.png`.
 - Smoke test de produção executado em Chromium/Chrome e teste offline via service worker.
+
+## Fechamento
+
+Se nada crítico aparecer no teste presencial da escola, o projeto pode ser considerado fechado para entrega.
 
 ---
 

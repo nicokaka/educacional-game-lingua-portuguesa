@@ -69,7 +69,14 @@
     if (phase === 'victory') {
       playSound('victory', 0.68);
     } else if (phase === 'game_over') {
-      playSound('gameover', 0.56);
+      playSound('gameover', 0.46, {
+        playbackRate: 0.88,
+        duration: 0.56,
+        attack: 0.02,
+        release: 0.22,
+        lowpassHz: 1500,
+        lowpassQ: 0.75,
+      });
     }
 
     previousPhase = phase;
@@ -390,8 +397,8 @@
 
   .hit-ring {
     position: absolute;
-    width: 138px;
-    height: 138px;
+    width: clamp(180px, 24vw, 300px);
+    height: clamp(180px, 24vw, 300px);
     border-radius: 50%;
     border: 2px solid rgba(250, 204, 21, 0.72);
     box-shadow: 0 0 18px rgba(250, 204, 21, 0.28);
@@ -487,8 +494,8 @@
   }
 
   :global(.battle-monster-svg) {
-    width: clamp(145px, 18vw, 210px);
-    height: clamp(145px, 18vw, 210px);
+    width: clamp(170px, 23vw, 270px);
+    height: clamp(170px, 23vw, 270px);
     object-fit: contain;
     filter: drop-shadow(0 4px 12px var(--color-primary-glow));
     transition: all var(--transition-normal);
@@ -496,8 +503,19 @@
 
   :global(img.battle-monster-svg) {
     image-rendering: pixelated;
-    transform: scale(1.22);
+    transform: scale(1.4);
     transform-origin: center;
+  }
+
+  @media (max-width: 640px) {
+    :global(.battle-monster-svg) {
+      width: clamp(145px, 42vw, 220px);
+      height: clamp(145px, 42vw, 220px);
+    }
+
+    :global(img.battle-monster-svg) {
+      transform: scale(1.32);
+    }
   }
 
   .monster-name {

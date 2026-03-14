@@ -2,7 +2,7 @@
 
 > Jogo educacional **Web e PWA** para ensino de gramática no Ensino Fundamental II e EJA.
 
-[![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow)]()
+[![Status](https://img.shields.io/badge/status-em%20producao-brightgreen)]()
 [![Stack](https://img.shields.io/badge/stack-Svelte%205%20%2B%20Supabase-blueviolet)]()
 
 ---
@@ -13,6 +13,15 @@ Uma **engine gamificada com ferramenta de autoria**:
 - O **professor** cria desafios diversos (preenchimento, múltipla escolha, V/F, ordenação) usando um editor web integrado, salvos diretamente na nuvem (Supabase).
 - O **aluno** joga pelo navegador (PC, Tablet ou Celular), enfrenta monstros e resolve as questões de gramática com mecânica de RPG.
 - **Modo Offline:** O jogo é um PWA (Progressive Web App). Pode ser instalado e jogado mesmo quando a internet da escola cair.
+
+## ✅ Estado Atual
+
+- Produção publicada em `https://alquimiaverbal.vercel.app/`
+- CRUD de módulos e desafios funcionando com Supabase
+- Fluxo completo de jogo com vitória, `game over`, combo, pontuação e penalidade por bizu
+- Monstros dinâmicos por módulo com sprites em `public/monstro*.png`
+- Sons `.ogg`, animações de impacto e PWA com cache offline
+- Documentação de uso e relatório de estágio concluídos
 
 ---
 
@@ -50,6 +59,13 @@ O projeto está pronto para Vercel. Basta conectar o repositório GitHub e confi
 **Publicação contínua:**
 - Cada `git push origin main` dispara um novo deploy automático no Vercel.
 - Após o deploy ficar `Ready`, a produção já atualiza na URL oficial.
+
+## 🧪 Validação
+
+- `npm test` cobre progresso, vitória, `game over` e penalidade de bizu
+- `npm run build` gera o pacote de produção sem erros
+- Smoke test executado na URL publicada
+- Service worker validado com reload offline após cache inicial
 
 ---
 
