@@ -120,7 +120,7 @@
 
   .menu-monster {
     animation: float 3s ease-in-out infinite;
-    margin-bottom: -100px; /* Aprofundado atrás dos módulos */
+    margin-bottom: -80px; /* Aprofundado atrás dos módulos */
     margin-top: -10px; /* Sobe a imagem um pouco mais para perto do título */
     position: relative;
     z-index: 1;
@@ -128,11 +128,11 @@
   }
 
   .professor-img {
-    width: 380px; /* BEM maior! */
+    width: clamp(250px, 32vw, 380px);
     height: auto;
-    max-height: 480px;
+    max-height: clamp(300px, 56vh, 480px);
     object-fit: contain;
-    margin-left: -35px; /* Empurra a imagem para a esquerda para alinhar o rosto com o centro da tela, compensando o peso do livro na arte */
+    margin-left: clamp(-35px, -2.4vw, -14px); /* Compensa peso visual do livro */
     filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
     /* Disfarça corte abrupto em baixo fazendo a imagem sumir (fade out) */
     -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
@@ -278,5 +278,76 @@
     color: var(--color-muted);
     opacity: 0.6;
     margin-top: 0.5rem;
+  }
+
+  @media (max-width: 1024px) {
+    .menu-screen {
+      padding: 1.25rem 1rem 1.5rem;
+      gap: 1rem;
+    }
+
+    .menu-monster {
+      margin-bottom: -58px;
+    }
+
+    .professor-img {
+      width: clamp(220px, 42vw, 320px);
+      max-height: 43vh;
+      margin-left: -18px;
+    }
+  }
+
+  @media (max-height: 820px) {
+    .menu-screen {
+      min-height: 100svh;
+      justify-content: flex-start;
+      gap: 0.9rem;
+      padding: 0.85rem 0.85rem 1.5rem;
+    }
+
+    .logo-section {
+      gap: 0.35rem;
+    }
+
+    .game-title {
+      font-size: clamp(2rem, 7vw, 3rem);
+    }
+
+    .game-subtitle {
+      font-size: 0.98rem;
+    }
+
+    .menu-monster {
+      margin-top: -6px;
+      margin-bottom: -40px;
+    }
+
+    .professor-img {
+      width: clamp(190px, 30vw, 290px);
+      max-height: 36vh;
+      margin-left: -12px;
+    }
+
+    .section-title {
+      font-size: 1.08rem;
+    }
+
+    .module-card {
+      padding: 0.82rem 1rem;
+    }
+
+    .module-title {
+      font-size: 1rem;
+    }
+
+    .editor-btn {
+      padding: 0.62rem 1.2rem;
+      font-size: 0.9rem;
+    }
+
+    .credits {
+      font-size: 0.7rem;
+      margin-top: 0.2rem;
+    }
   }
 </style>

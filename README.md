@@ -31,6 +31,8 @@ O projeto foi modernizado recentemente, migrando de Desktop (Tauri) para **Web M
 
 ## 🚀 Como Rodar e Fazer Deploy
 
+**URL de produção:** `https://alquimiaverbal.vercel.app/`
+
 **Passos para Desenvolvimento (Local):**
 ```bash
 # 1. Instalar dependências
@@ -45,10 +47,15 @@ npm run dev
 **Deploy (Vercel ou similar):**
 O projeto está pronto para Vercel. Basta conectar o repositório GitHub e configurar as variáveis de ambiente (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PROFESSOR_PASSWORD`). O comando de build já é o padrão (`npm run build`).
 
+**Publicação contínua:**
+- Cada `git push origin main` dispara um novo deploy automático no Vercel.
+- Após o deploy ficar `Ready`, a produção já atualiza na URL oficial.
+
 ---
 
 ## 📚 Documentação Adicional
 
 - [Setup de Desenvolvimento](./docs/SETUP_DEV.md) - Passos diretos para configurar ambiente local.
 - [Manual do Professor](./docs/MANUAL_PROFESSOR.md) - Guia passo a passo de como criar e editar questões no jogo.
+- [Relatório de Estágio](./docs/RELATORIO_ESTAGIO.md) - Entregas, arquitetura, validação e status final.
 - [Continuação e Roadmap](./CONTINUACAO.md) - Contexto completo da arquitetura e próximas tarefas.

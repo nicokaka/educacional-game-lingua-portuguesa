@@ -69,6 +69,7 @@ export async function fetchModuleWithChallenges(moduleId, options = {}) {
   }
 
   return {
+    id: moduleRow.id,
     module: moduleRow.title,
     author: moduleRow.author,
     challenges: challengeRows.map((challengeRow, index) =>

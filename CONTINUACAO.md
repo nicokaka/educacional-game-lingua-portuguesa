@@ -1,13 +1,13 @@
-# 🧭 GramQuest — Guia de Continuação
+# 🧭 Alquimia Verbal — Guia de Continuação
 
-> Última atualização: 14/03/2026
+> Última atualização: 14/03/2026 (deploy em produção no Vercel)
 > Deadline do estágio: **25/03/2026** (faltam ~11 dias)
 
 ---
 
 ## Contexto do Projeto
 
-GramQuest é um **jogo educacional gamificado de gramática portuguesa** para alunos do Ensino Fundamental II e EJA. O professor cria desafios, o aluno enfrenta monstros resolvendo questões.
+Alquimia Verbal é um **jogo educacional gamificado de gramática portuguesa** para alunos do Ensino Fundamental II e EJA. O professor cria desafios, o aluno enfrenta monstros resolvendo questões.
 
 **Mudança de arquitetura (11/03):** O projeto foi migrado de app desktop (Tauri + JSONC local) para **site web (Svelte 5 + Vite + Supabase)**. Agora o professor cria módulos no editor web, que são salvos no Supabase e ficam disponíveis em todos os PCs da escola automaticamente.
 
@@ -61,36 +61,37 @@ GramQuest é um **jogo educacional gamificado de gramática portuguesa** para al
 | **Form de Desafio** | `src/lib/components/editor/ChallengeForm.svelte` | ✅ Dinâmico por tipo |
 | **Seletor de Tipo** | `src/lib/components/editor/TypeSelector.svelte` | ✅ Dropdown com descrições |
 | **Banco de dados** | Supabase (tabelas + RLS + dados exemplo) | ✅ 7 desafios de exemplo |
+| **Deploy em produção** | Vercel | ✅ https://alquimiaverbal.vercel.app/ |
 
 ### 🔲 Falta fazer
 
 #### Fase F — Testes & Validação (prioridade altíssima)
 - [x] Criar no editor um módulo de teste com os 4 tipos de desafio (coberto em E2E)
 - [x] Jogar o módulo completo garantindo fluxo de vitória (coberto em E2E)
-- [ ] Testar falhas intencionais no jogo (dano, game over)
-  - Dano por resposta errada já coberto em E2E; `game over` ainda não existe na mecânica atual
+- [x] Testar falhas intencionais no jogo (dano, game over)
+  - Coberto por testes unitários e E2E (incluindo fluxo de derrota / `game_over`)
 - [x] Testar persistência de edição (editando módulo existente, coberto em E2E)
 
 #### Fase G — Game Feel (prioridade média)
-- [ ] Arquivos de som `.ogg` reais (acerto, erro, vitória) em `public/sounds/`
-- [ ] Monstros SVG diferentes por sprite (hoje é um SVG genérico inline)
-- [ ] Animação de dano no monstro (CSS: scale, shake, opacity)
-- [ ] Animação de morte do monstro (CSS: desaparece + partículas)
-- [ ] Efeito de partículas simples no acerto (CSS pseudo-elements)
+- [x] Arquivos de som `.ogg` reais (acerto, erro, vitória, derrota) em `public/sounds/`
+- [x] Variação automática de monstros por módulo com sprites em `public/monstro*.png`
+- [x] Animação de dano no monstro (CSS: scale, shake, opacity)
+- [x] Animação de morte do monstro (CSS: desaparece + partículas)
+- [x] Efeito de partículas no acerto (anel de impacto + sparks)
 
 #### Fase H — PWA + Deploy (prioridade alta)
 - [x] Instalar `vite-plugin-pwa`
 - [x] Configurar manifesto PWA (atualmente definido em `vite.config.js`)
 - [x] Configurar Service Worker para cache offline
 - [x] Atualizar `index.html` com meta tags PWA e SEO
-- [ ] Deploy no Vercel (conectar repo GitHub, adicionar env vars)
-- [ ] Testar offline (Service Worker cacheia assets)
-- [ ] Testar em navigador de escola (Chrome/Edge)
+- [x] Deploy no Vercel (repositório conectado + env vars configuradas)
+- [x] Testar offline (Service Worker cacheia assets)
+- [ ] Testar em navegador de escola (Chrome/Edge)
 
 #### Fase I — Documentação (prioridade média)
 - [x] Atualizar `README.md` com a nova arquitetura
 - [x] Escrever `docs/MANUAL_PROFESSOR.md`
-- [ ] Documentação do estágio
+- [x] Documentação do estágio
 
 ---
 
@@ -106,7 +107,14 @@ GramQuest é um **jogo educacional gamificado de gramática portuguesa** para al
   - novo arquivo `tests/e2e/pending-flows.spec.js` cobrindo:
     - fluxo completo com 4 tipos de desafio até vitória
     - dano por resposta errada
+    - game over por sequência de erros
     - persistência de edição de módulo
+- Fluxo de `game_over` implementado na UI com tela de derrota e reinício de rodada.
+- Produção publicada em `https://alquimiaverbal.vercel.app/`.
+- HUD e feedback ajustados: shake da tela só no erro, impacto local no monstro/HP no acerto.
+- Pontuação final agora exibida como `pontos obtidos / pontos máximos do módulo`.
+- Responsividade refinada para telas menores (ex.: 1366x768).
+- Smoke test de produção executado em Chromium/Chrome e teste offline via service worker.
 
 ---
 

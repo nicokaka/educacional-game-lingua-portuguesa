@@ -62,7 +62,7 @@
       type: 'multiple_choice',
       prompt: '',
       difficulty: 1,
-      monster: { name: 'Monstro', sprite: 'monster_01' },
+      monster: { name: 'Monstro', sprite: '' },
       hint: '',
       options: [
         { text: '', correct: true, feedback: '' },

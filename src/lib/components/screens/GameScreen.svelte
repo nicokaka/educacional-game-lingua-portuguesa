@@ -2,7 +2,7 @@
   import { getState, startGame, submitAnswer, requestHint, resetToMenu } from '../../stores/gameStore.svelte.js';
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';
-  import { initAudio } from '../../engine/feedbackEngine.js';
+  import { initAudio, playSound } from '../../engine/feedbackEngine.js';
   import ChallengeHost from '../ChallengeHost.svelte';
   import HUD from '../shared/HUD.svelte';
   import MonsterSvg from './MonsterSvg.svelte';
@@ -22,6 +22,8 @@
   let isHit = $state(false);
   let lastPlayerHp = $state(0);
   let isPlayerHit = $state(false);
+  let finalMaxScore = $derived(game.maxScore > 0 ? game.maxScore : game.score);
+  let previousPhase = $state('menu');
 
   $effect(() => {
     if (moduleId) {
@@ -58,6 +60,19 @@
     } else if (game.playerHp > lastPlayerHp) {
       lastPlayerHp = game.playerHp;
     }
+  });
+
+  $effect(() => {
+    const phase = game.phase;
+    if (phase === previousPhase) return;
+
+    if (phase === 'victory') {
+      playSound('victory', 0.68);
+    } else if (phase === 'game_over') {
+      playSound('gameover', 0.56);
+    }
+
+    previousPhase = phase;
   });
 
   async function loadModule(id) {
@@ -170,6 +185,7 @@
       maxMonsterHp={game.maxMonsterHp}
       playerHp={game.playerHp}
       maxPlayerHp={game.maxPlayerHp}
+      monsterHit={isHit}
       playerHit={isPlayerHit}
       progress={game.progress}
       moduleName={game.moduleName}
@@ -182,7 +198,9 @@
         class:hit={isHit}
         class:dead={game.monsterHp <= 0}
       >
-        <MonsterSvg seed={game.monsterSeed} class="battle-monster-svg" />
+        <MonsterSvg seed={game.monsterSeed} sprite={game.monsterSprite} class="battle-monster-svg" />
+        <span class="hit-ring" aria-hidden="true"></span>
+        <span class="hit-sparks" aria-hidden="true"></span>
         <span class="monster-name">{game.monsterName}</span>
       </div>
     </div>
@@ -211,7 +229,11 @@
 
       <div class="victory-stats">
         <div class="stat-card">
-          <span class="stat-card-value">{game.score}</span>
+          <span class="stat-card-value score-ratio">
+            <span>{game.score}</span>
+            <span class="score-divider">/</span>
+            <span class="score-max">{finalMaxScore}</span>
+          </span>
           <span class="stat-card-label">Pontos</span>
         </div>
         <div class="stat-card">
@@ -246,7 +268,11 @@
 
       <div class="victory-stats">
         <div class="stat-card">
-          <span class="stat-card-value">{game.score}</span>
+          <span class="stat-card-value score-ratio">
+            <span>{game.score}</span>
+            <span class="score-divider">/</span>
+            <span class="score-max">{finalMaxScore}</span>
+          </span>
           <span class="stat-card-label">Pontos</span>
         </div>
         <div class="stat-card">
@@ -362,6 +388,58 @@
     animation: particle-burst 0.3s ease-out forwards;
   }
 
+  .hit-ring {
+    position: absolute;
+    width: 138px;
+    height: 138px;
+    border-radius: 50%;
+    border: 2px solid rgba(250, 204, 21, 0.72);
+    box-shadow: 0 0 18px rgba(250, 204, 21, 0.28);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .monster-display.hit .hit-ring {
+    animation: hit-ring-pop 0.38s ease-out;
+  }
+
+  .hit-sparks {
+    position: absolute;
+    inset: -12px;
+    pointer-events: none;
+  }
+
+  .hit-sparks::before,
+  .hit-sparks::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #facc15;
+    opacity: 0;
+  }
+
+  .monster-display.hit .hit-sparks::before {
+    box-shadow:
+      -46px -8px 0 #fde047,
+      42px -14px 0 #facc15,
+      -16px 40px 0 #f59e0b,
+      24px 36px 0 #fde68a;
+    animation: spark-burst-a 0.34s ease-out;
+  }
+
+  .monster-display.hit .hit-sparks::after {
+    box-shadow:
+      -36px -30px 0 #f59e0b,
+      16px -42px 0 #fde047,
+      -44px 24px 0 #fde68a,
+      40px 20px 0 #fbbf24;
+    animation: spark-burst-b 0.38s ease-out;
+  }
+
   @keyframes particle-burst {
     0% { transform: scale(0.5) translate(0, 0); opacity: 1; }
     100% { transform: scale(1.5) translate(20px, -30px); opacity: 0; }
@@ -393,11 +471,33 @@
     100% { transform: scale(3) translateY(-40px); opacity: 0; filter: blur(4px); }
   }
 
+  @keyframes hit-ring-pop {
+    0% { transform: scale(0.65); opacity: 0.85; }
+    100% { transform: scale(1.25); opacity: 0; }
+  }
+
+  @keyframes spark-burst-a {
+    0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+  }
+
+  @keyframes spark-burst-b {
+    0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
+  }
+
   :global(.battle-monster-svg) {
-    width: 100px;
-    height: 100px;
+    width: clamp(145px, 18vw, 210px);
+    height: clamp(145px, 18vw, 210px);
+    object-fit: contain;
     filter: drop-shadow(0 4px 12px var(--color-primary-glow));
     transition: all var(--transition-normal);
+  }
+
+  :global(img.battle-monster-svg) {
+    image-rendering: pixelated;
+    transform: scale(1.22);
+    transform-origin: center;
   }
 
   .monster-name {
@@ -546,6 +646,23 @@
     font-size: 2rem;
     font-weight: 800;
     color: var(--color-warning);
+  }
+
+  .score-ratio {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    white-space: nowrap;
+  }
+
+  .score-divider {
+    opacity: 0.6;
+    font-size: 1.4rem;
+  }
+
+  .score-max {
+    font-size: 1.2rem;
+    opacity: 0.8;
   }
 
   .stat-card-label {

@@ -6,6 +6,7 @@
     maxMonsterHp = 100,
     playerHp = 100,
     maxPlayerHp = 100,
+    monsterHit = false,
     playerHit = false,
     progress = {},
     moduleName = '',
@@ -38,7 +39,7 @@
       <span class="stat-value score-value">{score}</span>
     </div>
 
-    <div class="hp-section">
+    <div class="hp-section monster-section" class:hit={monsterHit}>
       <span class="hp-label">HP do Monstro</span>
       <div class="hp-bar-bg">
         <div
@@ -178,6 +179,29 @@
   .hp-text {
     font-size: 0.75rem;
     color: var(--color-muted, #94a3b8);
+  }
+
+  .monster-section.hit .hp-bar-fill {
+    animation: monster-hit-pulse 0.34s ease;
+  }
+
+  .monster-section.hit .hp-bar-bg {
+    border-color: rgba(250, 204, 21, 0.7);
+    box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.25), 0 0 14px rgba(250, 204, 21, 0.24);
+    animation: monster-hit-shake 0.34s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  @keyframes monster-hit-pulse {
+    0% { transform: scaleY(1); filter: brightness(1); }
+    50% { transform: scaleY(1.24); filter: brightness(1.3); }
+    100% { transform: scaleY(1); filter: brightness(1); }
+  }
+
+  @keyframes monster-hit-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    50% { transform: translateX(3px); }
+    75% { transform: translateX(-2px); }
   }
 
   .player-section {

@@ -75,7 +75,7 @@
       type: newType,
       prompt: challenge.prompt,
       difficulty: challenge.difficulty,
-      monster: challenge.monster || { name: 'Monstro', sprite: 'monster_01' },
+      monster: challenge.monster || { name: 'Monstro', sprite: '' },
     };
 
     if (newType === 'drag_drop') {

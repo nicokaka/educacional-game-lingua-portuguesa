@@ -46,6 +46,14 @@ export function glowWrong(el) {
 
 let audioCtx = null;
 const buffers = {};
+let defaultSoundsRequested = false;
+
+const DEFAULT_SOUNDS = {
+  correct: '/sounds/correct.ogg',
+  wrong: '/sounds/wrong.ogg',
+  victory: '/sounds/victory.ogg',
+  gameover: '/sounds/gameover.ogg',
+};
 
 /**
  * Inicializa o AudioContext. Chamar no primeiro clique do usuário.
@@ -53,6 +61,7 @@ const buffers = {};
 export function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  preloadDefaultSounds();
 }
 
 /**
@@ -68,6 +77,15 @@ export async function loadSound(name, url) {
     buffers[name] = await audioCtx.decodeAudioData(arrayBuffer);
   } catch (e) {
     console.warn(`Não foi possível carregar som "${name}":`, e.message);
+  }
+}
+
+function preloadDefaultSounds() {
+  if (defaultSoundsRequested) return;
+  defaultSoundsRequested = true;
+
+  for (const [name, url] of Object.entries(DEFAULT_SOUNDS)) {
+    void loadSound(name, url);
   }
 }
 
@@ -102,10 +120,10 @@ export function playSound(name, volume = 0.5) {
  */
 export function dispatchFeedback(type, targetEl) {
   if (type === 'correct') {
-    screenShake();
     if (targetEl) glowCorrect(targetEl);
     playSound('correct', 0.6);
   } else {
+    screenShake();
     if (targetEl) glowWrong(targetEl);
     playSound('wrong', 0.4);
   }

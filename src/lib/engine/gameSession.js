@@ -5,6 +5,7 @@ export function createInitialGameState() {
     playerAnswer: null,
     backpack: [],
     score: 0,
+    maxScore: 0,
     streak: 0,
     monsterHp: 100,
     maxMonsterHp: 100,
@@ -12,6 +13,7 @@ export function createInitialGameState() {
     maxPlayerHp: 100,
     monsterSeed: 0,
     monsterName: 'Monstro',
+    monsterSprite: '',
     questionSerial: 0,
     hintUsedForQuestion: false,
     progress: { current: 0, total: 0, percent: 0 },
@@ -26,10 +28,12 @@ export function startGameState(state, moduleData) {
 
   state.moduleName = moduleData.module;
   state.score = 0;
+  state.maxScore = getModuleMaxScore(moduleData);
   state.streak = 0;
   state.phase = 'playing';
   state.errorMessage = '';
   state.monsterName = monster.name;
+  state.monsterSprite = monster.sprite;
   state.monsterSeed = monster.seed;
   state.maxMonsterHp = maxMonsterHp;
   state.monsterHp = maxMonsterHp;
@@ -126,15 +130,47 @@ export function getModulePlayerHp(moduleData) {
   return challenges.reduce((total, challenge) => total + Math.max(8, Math.round(getPlayerDamage(challenge) * 0.6)), 0);
 }
 
+export function getModuleMaxScore(moduleData) {
+  const challenges = moduleData?.challenges || [];
+  if (challenges.length === 0) return 0;
+
+  let streak = 0;
+  return challenges.reduce((total, challenge) => {
+    const difficulty = challenge?.difficulty || 1;
+    const score = 10 * difficulty * (1 + streak);
+    streak += 1;
+    return total + score;
+  }, 0);
+}
+
 export function getModuleMonster(moduleData) {
   const firstMonster = moduleData?.challenges?.find((challenge) => challenge?.monster)?.monster;
   const baseName = firstMonster?.name || 'Monstro';
-  const sprite = firstMonster?.sprite || moduleData?.module || baseName;
+  const rawSprite = String(firstMonster?.sprite || '').trim();
+  const moduleSeedSource = String(moduleData?.id || `${moduleData?.module || ''}:${moduleData?.author || ''}` || baseName);
+
+  // Se o sprite vier vazio ou com placeholder legado, escolhemos automaticamente.
+  const sprite = shouldUseAutoMonster(rawSprite)
+    ? pickAutoMonsterSprite(moduleSeedSource)
+    : rawSprite;
+  const spriteSeedSource = `${moduleSeedSource}:${sprite}`;
 
   return {
     name: baseName,
-    seed: hashString(sprite),
+    sprite,
+    seed: hashString(spriteSeedSource),
   };
+}
+
+function shouldUseAutoMonster(sprite) {
+  if (!sprite) return true;
+  return /^(monster|monstro)([_-]?0*1)?$/i.test(sprite) || /monster_test/i.test(sprite);
+}
+
+function pickAutoMonsterSprite(seedSource) {
+  const poolSize = 5;
+  const index = (hashString(seedSource) % poolSize) + 1;
+  return `monstro${index}`;
 }
 
 function hashString(value) {
