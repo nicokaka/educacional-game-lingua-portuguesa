@@ -1,4 +1,4 @@
-# 🎮 GramQuest — O Jogo da Gramática
+# 🎮 Alquimia Verbal — O Jogo da Gramática
 
 > Jogo educacional **Web e PWA** para ensino de gramática no Ensino Fundamental II e EJA.
 
