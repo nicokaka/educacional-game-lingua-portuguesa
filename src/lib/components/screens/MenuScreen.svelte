@@ -5,6 +5,9 @@
   let modules = $state([]);
   let loading = $state(true);
   let error = $state('');
+  let showHelp = $state(false);
+  const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Autor do Projeto';
+  const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Professor Orientador';
 
   async function load() {
     loading = true;
@@ -28,9 +31,38 @@
   function openEditor() {
     navigate('/editor');
   }
+
+  function toggleHelp() {
+    showHelp = !showHelp;
+  }
+
+  function closeHelp() {
+    showHelp = false;
+  }
+
+  function handleWindowKeydown(event) {
+    if (event.key === 'Escape' && showHelp) {
+      closeHelp();
+    }
+  }
+
+  function stopMouseDown(event) {
+    event.stopPropagation();
+  }
 </script>
 
+<svelte:window onkeydown={handleWindowKeydown} />
+
 <div class="menu-screen">
+  <button
+    class="help-fab"
+    onclick={toggleHelp}
+    aria-label="Ajuda e creditos"
+    title="Como jogar e creditos"
+  >
+    ?
+  </button>
+
   <div class="logo-section">
     <h1 class="game-title">
       <span class="title-alquimia">Alquimia</span>&nbsp;<span class="title-verbal">Verbal</span>
@@ -82,6 +114,35 @@
   <p class="credits">Projeto de Estágio — Licenciatura em Computação (UFRPE)</p>
 </div>
 
+{#if showHelp}
+  <div class="help-overlay" role="presentation" onmousedown={closeHelp}>
+    <div
+      class="help-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Ajuda e creditos"
+      tabindex="-1"
+      onmousedown={stopMouseDown}
+    >
+      <div class="help-header">
+        <h2 class="help-title">🧭 Como jogar</h2>
+        <button class="help-close" onclick={closeHelp} aria-label="Fechar ajuda">x</button>
+      </div>
+
+      <p class="help-line">1. Escolha um modulo e comece a batalha.</p>
+      <p class="help-line">2. Acerte os desafios para reduzir o HP do monstro.</p>
+      <p class="help-line">3. Se errar, voce perde energia. Se chegar a zero, e game over.</p>
+      <p class="help-line">4. O bizu ajuda, mas tambem custa energia.</p>
+
+      <div class="help-divider"></div>
+
+      <h3 class="help-subtitle">👥 Creditos</h3>
+      <p class="credits-line"><strong>Criador:</strong> {creatorName}</p>
+      <p class="credits-line"><strong>Professor orientador:</strong> {mentorName}</p>
+    </div>
+  </div>
+{/if}
+
 <style>
   .menu-screen {
     min-height: 100vh;
@@ -93,6 +154,30 @@
     text-align: center;
     padding: 2rem;
     animation: fadeIn 0.6s ease;
+    position: relative;
+  }
+
+  .help-fab {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(139, 92, 246, 0.55);
+    background: linear-gradient(140deg, rgba(139, 92, 246, 0.2), rgba(30, 41, 59, 0.95));
+    color: var(--color-text);
+    font-size: 1.2rem;
+    font-weight: 800;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
+    z-index: 25;
+    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .help-fab:hover {
+    transform: translateY(-1px) scale(1.03);
+    border-color: var(--color-primary);
+    box-shadow: 0 10px 24px rgba(139, 92, 246, 0.3);
   }
 
   .logo-section {
@@ -277,7 +362,96 @@
     font-size: 0.75rem;
     color: var(--color-muted);
     opacity: 0.6;
-    margin-top: 0.5rem;
+    margin-top: 0.4rem;
+  }
+
+  .help-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.66);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 40;
+  }
+
+  .help-modal {
+    width: min(560px, 96vw);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+    box-shadow: 0 20px 42px rgba(2, 6, 23, 0.58);
+    padding: 1rem 1rem 0.95rem;
+    text-align: left;
+    animation: help-pop 0.2s ease;
+  }
+
+  .help-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.45rem;
+  }
+
+  .help-title {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  .help-close {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: rgba(15, 23, 42, 0.7);
+    color: var(--color-muted);
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+  }
+
+  .help-close:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+  }
+
+  .help-line,
+  .credits-line {
+    font-size: 0.9rem;
+    color: var(--color-muted);
+    line-height: 1.5;
+    margin-bottom: 0.3rem;
+  }
+
+  .credits-line strong {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .help-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 0.7rem 0;
+  }
+
+  .help-subtitle {
+    font-size: 0.92rem;
+    color: var(--color-text);
+    margin-bottom: 0.35rem;
+  }
+
+  @keyframes help-pop {
+    from {
+      transform: translateY(8px) scale(0.98);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
   }
 
   @media (max-width: 1024px) {
@@ -343,6 +517,23 @@
     .editor-btn {
       padding: 0.62rem 1.2rem;
       font-size: 0.9rem;
+    }
+
+    .help-fab {
+      width: 40px;
+      height: 40px;
+      top: 0.7rem;
+      right: 0.7rem;
+    }
+
+    .help-modal {
+      padding: 0.85rem 0.82rem 0.78rem;
+    }
+
+    .help-line,
+    .credits-line {
+      font-size: 0.83rem;
+      line-height: 1.38;
     }
 
     .credits {

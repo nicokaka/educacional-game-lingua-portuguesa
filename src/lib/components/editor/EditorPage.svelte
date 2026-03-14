@@ -8,18 +8,48 @@
   let authenticated = $state(false);
   let passwordInput = $state('');
   let passwordError = $state('');
+  let showPassword = $state(false);
+  let failedAttempts = $state(0);
+  let lockUntil = $state(0);
+  let lockClock = $state(Date.now());
 
   let modules = $state([]);
   let loading = $state(false);
   let editing = $state(null); // null = lista, 'new' = novo, { id, ... } = editando
+  let uiError = $state('');
+
+  let remainingLockSeconds = $derived(Math.max(0, Math.ceil((lockUntil - lockClock) / 1000)));
+  let isLocked = $derived(remainingLockSeconds > 0);
+
+  $effect(() => {
+    const timer = setInterval(() => {
+      lockClock = Date.now();
+    }, 500);
+    return () => clearInterval(timer);
+  });
 
   function handleLogin() {
+    if (isLocked) {
+      passwordError = `Acesso bloqueado. Tente novamente em ${remainingLockSeconds}s.`;
+      return;
+    }
+
     if (passwordInput === PROFESSOR_PASSWORD) {
       authenticated = true;
       passwordError = '';
+      failedAttempts = 0;
+      lockUntil = 0;
+      uiError = '';
       loadModules();
     } else {
-      passwordError = 'Senha incorreta.';
+      failedAttempts += 1;
+      if (failedAttempts >= 5) {
+        lockUntil = Date.now() + 30000;
+        failedAttempts = 0;
+        passwordError = 'Muitas tentativas. Acesso bloqueado por 30s.';
+      } else {
+        passwordError = 'Senha incorreta.';
+      }
     }
   }
 
@@ -29,20 +59,24 @@
 
   async function loadModules() {
     loading = true;
+    uiError = '';
     try {
       modules = await fetchModules();
     } catch (e) {
       console.error('Erro ao carregar módulos:', e);
+      uiError = `Nao foi possivel carregar os modulos: ${e.message}`;
     } finally {
       loading = false;
     }
   }
 
   function startNewModule() {
+    uiError = '';
     editing = 'new';
   }
 
   async function editModule(mod) {
+    uiError = '';
     try {
       const full = await fetchModuleWithChallenges(mod.id);
       editing = {
@@ -53,16 +87,19 @@
       };
     } catch (e) {
       console.error('Erro ao carregar módulo:', e);
+      uiError = `Nao foi possivel abrir o modulo: ${e.message}`;
     }
   }
 
   async function handleDelete(mod) {
     if (!confirm(`Tem certeza que deseja excluir "${mod.title}"?`)) return;
+    uiError = '';
     try {
       await deleteModule(mod.id);
       await loadModules();
     } catch (e) {
       console.error('Erro ao deletar:', e);
+      uiError = `Nao foi possivel excluir o modulo: ${e.message}`;
     }
   }
 
@@ -85,19 +122,34 @@
         <p class="login-subtitle">Digite a senha para acessar o editor.</p>
 
         <div class="login-field">
+          <div class="password-field">
           <input
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             class="login-input"
             bind:value={passwordInput}
             onkeydown={handleKeydown}
             placeholder="Senha"
+            disabled={isLocked}
           />
+          <button
+            class="password-toggle"
+            type="button"
+            onclick={() => showPassword = !showPassword}
+            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            disabled={isLocked}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+          </div>
           {#if passwordError}
             <p class="login-error">{passwordError}</p>
           {/if}
         </div>
 
-        <button class="login-btn" onclick={handleLogin}>Entrar</button>
+        <button class="login-btn" onclick={handleLogin} disabled={isLocked}>
+          {isLocked ? `Aguarde ${remainingLockSeconds}s` : 'Entrar'}
+        </button>
 
         <button class="back-link" onclick={goToMenu}>← Voltar ao menu</button>
       </div>
@@ -113,6 +165,12 @@
           <button class="back-btn" onclick={goToMenu}>← Menu</button>
         </div>
       </div>
+
+      {#if uiError}
+        <div class="ui-error-banner" role="status" aria-live="polite">
+          ⚠️ {uiError}
+        </div>
+      {/if}
 
       {#if loading}
         <div class="center-state">
@@ -134,7 +192,9 @@
               </div>
               <div class="module-actions">
                 <button class="action-btn edit" onclick={() => editModule(mod)}>✏️ Editar</button>
-                <button class="action-btn delete" onclick={() => handleDelete(mod)}>🗑️</button>
+                <button class="action-btn delete" onclick={() => handleDelete(mod)} title="Excluir modulo">
+                  🗑️ Excluir
+                </button>
               </div>
             </div>
           {/each}
@@ -210,9 +270,15 @@
     gap: 0.35rem;
   }
 
+  .password-field {
+    position: relative;
+    width: 100%;
+  }
+
   .login-input {
     width: 100%;
     padding: 0.7rem 1rem;
+    padding-right: 2.9rem;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -226,6 +292,32 @@
   .login-input:focus {
     border-color: var(--color-primary);
     outline: none;
+  }
+
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.5rem;
+    transform: translateY(-50%);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .password-toggle:hover:not(:disabled) {
+    color: var(--color-text);
+    border-color: var(--color-border);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .password-toggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .login-error {
@@ -251,6 +343,13 @@
     box-shadow: 0 8px 30px var(--color-primary-glow);
   }
 
+  .login-btn:disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
   .back-link {
     background: none;
     border: none;
@@ -271,6 +370,15 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+  }
+
+  .ui-error-banner {
+    background: rgba(248, 113, 113, 0.14);
+    color: #fecaca;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    border-radius: var(--radius-md);
+    padding: 0.7rem 0.9rem;
+    font-size: 0.85rem;
   }
 
   .page-header {

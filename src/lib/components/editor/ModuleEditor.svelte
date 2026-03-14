@@ -29,6 +29,8 @@
   let draftTimestamp = $state(0);
   let draftMessage = $state('');
   let draftReady = $state(false);
+  let previewing = $state(false);
+  let currentModuleId = $state(null);
 
   let autoSaveTimer = null;
   let draftMessageTimer = null;
@@ -155,15 +157,6 @@
           errors.push(`Preencha a opcao ${emptyLoot + 1} da mochila.`);
         }
       }
-
-      if (challenge.correctAnswer?.trim() && Array.isArray(challenge.loot)) {
-        const hasCorrectAnswerInLoot = challenge.loot.some(
-          (item) => item.text?.trim().toLowerCase() === challenge.correctAnswer.trim().toLowerCase()
-        );
-        if (!hasCorrectAnswerInLoot) {
-          errors.push('A resposta correta precisa estar entre as opcoes da mochila.');
-        }
-      }
     }
 
     if (challenge?.type === 'ordering') {
@@ -191,6 +184,13 @@
       console.warn('Nao foi possivel limpar rascunho local:', error.message);
     }
   }
+
+  $effect(() => {
+    moduleId;
+    if (!currentModuleId && moduleId) {
+      currentModuleId = moduleId;
+    }
+  });
 
   $effect(() => {
     draftStorageKey;
@@ -266,42 +266,66 @@
   });
 
   async function handleSave() {
+    const savedId = await persistModule({ exitOnSuccess: true });
+    if (savedId) currentModuleId = savedId;
+  }
+
+  async function handlePreview() {
+    const savedId = await persistModule({ exitOnSuccess: false });
+    if (!savedId || typeof window === 'undefined') return;
+
+    previewing = true;
+    try {
+      window.open(`/#/play/${savedId}`, '_blank', 'noopener,noreferrer');
+      showDraftMessage('Pre-visualizacao aberta em nova aba.');
+    } finally {
+      previewing = false;
+    }
+  }
+
+  async function persistModule({ exitOnSuccess }) {
     // Validação básica
     if (!title.trim()) {
       saveError = 'O título do módulo é obrigatório.';
-      return;
+      return null;
     }
     if (challenges.length === 0) {
       saveError = 'Adicione pelo menos 1 desafio.';
-      return;
+      return null;
     }
 
     const firstInvalidIndex = challengeErrors.findIndex((errors) => errors.length > 0);
     if (firstInvalidIndex !== -1) {
       saveError = `Desafio ${firstInvalidIndex + 1}: ${challengeErrors[firstInvalidIndex][0]}`;
-      return;
+      return null;
     }
 
     saving = true;
     saveError = '';
     saveSuccess = false;
+    let savedId = currentModuleId;
 
     try {
       const moduleData = { title: title.trim(), author: author.trim() || 'Professor' };
 
-      if (moduleId) {
-        await updateModule(moduleId, moduleData, challenges);
+      if (savedId) {
+        await updateModule(savedId, moduleData, challenges);
       } else {
-        await createModule(moduleData, challenges);
+        savedId = await createModule(moduleData, challenges);
+        currentModuleId = savedId;
       }
 
       clearDraft();
       saveSuccess = true;
-      setTimeout(() => {
-        onSave?.();
-      }, 1000);
+      if (exitOnSuccess) {
+        setTimeout(() => {
+          onSave?.();
+        }, 1000);
+      }
+      return savedId;
     } catch (e) {
       saveError = e.message;
+      return null;
     } finally {
       saving = false;
     }
@@ -323,6 +347,14 @@
       {#if saveSuccess}
         <span class="save-success">✅ Salvo!</span>
       {/if}
+      <button
+        class="preview-btn"
+        onclick={handlePreview}
+        disabled={saving || previewing}
+        title="Abrir uma pre-visualizacao para testar como aluno"
+      >
+        {previewing ? 'Abrindo...' : 'Pre-visualizar'}
+      </button>
       <button class="save-btn" onclick={handleSave} disabled={saving}>
         {saving ? 'Gravando...' : 'Salvar Módulo'}
       </button>
@@ -461,6 +493,28 @@
     font-weight: 600;
     cursor: pointer;
     transition: background-color var(--transition-fast);
+  }
+
+  .preview-btn {
+    padding: 0.68rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: rgba(30, 41, 59, 0.9);
+    color: var(--color-text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .preview-btn:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  .preview-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .save-btn:hover:not(:disabled) {

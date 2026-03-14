@@ -144,11 +144,12 @@
       </div>
 
       <div class="field">
-        <p class="field-label">Opcoes Falsas (Loot da Mochila)</p>
+        <p class="field-label">Opcoes da Mochila</p>
+        <p class="field-hint">Voce pode inserir apenas distratores. A resposta correta e adicionada automaticamente no jogo.</p>
         {#each challenge.loot || [] as item, i}
           <div class="option-row">
             <span class="icon">-</span>
-            <input class="field-input google-input flex-1" bind:value={item.text} placeholder="Opcao falsa {i + 1}" />
+            <input class="field-input google-input flex-1" bind:value={item.text} placeholder="Opcao da mochila {i + 1}" />
             <button class="icon-btn danger" onclick={() => removeLoot(i)}>x</button>
           </div>
         {/each}
@@ -393,6 +394,13 @@
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--color-muted);
+  }
+
+  .field-hint {
+    font-size: 0.76rem;
+    color: var(--color-muted);
+    opacity: 0.9;
+    margin-top: -0.2rem;
   }
 
   .field-label-small {
