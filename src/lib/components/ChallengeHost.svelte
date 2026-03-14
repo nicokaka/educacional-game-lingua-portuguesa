@@ -1,7 +1,7 @@
 <script>
   import { getRenderer } from '../engine/challengeRegistry.js';
 
-  let { challenge, onAnswer } = $props();
+  let { challenge, onAnswer, onHint } = $props();
 
   let RendererComponent = $derived(getRenderer(challenge?.type));
 </script>
@@ -9,7 +9,7 @@
 <div class="challenge-host">
   {#if challenge && RendererComponent}
     <div class="renderer-wrapper" style="animation: slideIn 0.4s ease;">
-      <RendererComponent {challenge} {onAnswer} />
+      <RendererComponent {challenge} {onAnswer} {onHint} />
     </div>
   {:else}
     <div class="no-challenge">

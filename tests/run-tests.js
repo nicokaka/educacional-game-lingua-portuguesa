@@ -4,6 +4,8 @@ import { createChallengeManager } from '../src/lib/engine/challengeManager.js';
 import {
   advanceToNextChallengeState,
   applyCorrectAnswerState,
+  applyHintPenaltyState,
+  applyWrongAnswerState,
   createInitialGameState,
   startGameState,
 } from '../src/lib/engine/gameSession.js';
@@ -134,4 +136,48 @@ runTest('entra em vitoria ao concluir a ultima pergunta', () => {
   assert.equal(state.phase, 'victory');
   assert.equal(state.currentChallenge, null);
   assert.equal(state.monsterHp, 0);
+});
+
+runTest('entra em game_over quando a energia do jogador chega a zero', () => {
+  const moduleData = createModuleData();
+  const manager = createChallengeManager(moduleData.challenges, { randomize: false });
+  const state = createInitialGameState();
+
+  startGameState(state, moduleData);
+  const initialPlayerHp = state.playerHp;
+
+  const challenge = manager.next();
+  advanceToNextChallengeState(state, challenge, manager.progress());
+
+  while (state.phase === 'playing') {
+    applyWrongAnswerState(state, state.currentChallenge);
+  }
+
+  assert.equal(state.phase, 'game_over');
+  assert.equal(state.playerHp, 0);
+  assert.ok(initialPlayerHp > state.playerHp);
+});
+
+runTest('aplicar bizu gera penalidade e marca dica como usada na pergunta', () => {
+  const moduleData = createModuleData();
+  const manager = createChallengeManager(moduleData.challenges, { randomize: false });
+  const state = createInitialGameState();
+
+  startGameState(state, moduleData);
+  const challenge = manager.next();
+  advanceToNextChallengeState(state, challenge, manager.progress());
+
+  const initialScore = state.score;
+  const initialMonsterHp = state.monsterHp;
+  const initialPlayerHp = state.playerHp;
+
+  const penalty = applyHintPenaltyState(state, state.currentChallenge);
+
+  assert.ok(penalty.scorePenalty > 0);
+  assert.ok(penalty.monsterHeal > 0);
+  assert.ok(penalty.playerDamage > 0);
+  assert.equal(state.hintUsedForQuestion, true);
+  assert.ok(state.score <= initialScore);
+  assert.ok(state.monsterHp >= initialMonsterHp);
+  assert.ok(state.playerHp < initialPlayerHp);
 });

@@ -91,7 +91,6 @@
             bind:value={passwordInput}
             onkeydown={handleKeydown}
             placeholder="Senha"
-            autofocus
           />
           {#if passwordError}
             <p class="login-error">{passwordError}</p>

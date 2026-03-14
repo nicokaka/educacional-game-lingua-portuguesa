@@ -1,10 +1,25 @@
 <script>
-  let { score = 0, streak = 0, monsterHp = 100, maxMonsterHp = 100, progress = {}, moduleName = '' } = $props();
+  let {
+    score = 0,
+    streak = 0,
+    monsterHp = 100,
+    maxMonsterHp = 100,
+    playerHp = 100,
+    maxPlayerHp = 100,
+    playerHit = false,
+    progress = {},
+    moduleName = '',
+  } = $props();
 
   let hpPercent = $derived(Math.max(0, Math.round((monsterHp / maxMonsterHp) * 100)));
   let hpColor = $derived(
     hpPercent > 60 ? '#4ade80' :
     hpPercent > 30 ? '#facc15' : '#f87171'
+  );
+  let playerHpPercent = $derived(Math.max(0, Math.round((playerHp / maxPlayerHp) * 100)));
+  let playerHpColor = $derived(
+    playerHpPercent > 60 ? '#60a5fa' :
+    playerHpPercent > 30 ? '#facc15' : '#f87171'
   );
 </script>
 
@@ -23,7 +38,6 @@
       <span class="stat-value score-value">{score}</span>
     </div>
 
-    <!-- HP Bar -->
     <div class="hp-section">
       <span class="hp-label">HP do Monstro</span>
       <div class="hp-bar-bg">
@@ -32,7 +46,18 @@
           style="width: {hpPercent}%; background: {hpColor};"
         ></div>
       </div>
-      <span class="hp-text">{monsterHp}/{maxMonsterHp}</span>
+      <span class="hp-text monster-hp-text">{monsterHp}/{maxMonsterHp}</span>
+    </div>
+
+    <div class="hp-section player-section" class:hit={playerHit}>
+      <span class="hp-label">Vida (HP)</span>
+      <div class="hp-bar-bg">
+        <div
+          class="hp-bar-fill"
+          style="width: {playerHpPercent}%; background: {playerHpColor};"
+        ></div>
+      </div>
+      <span class="hp-text player-hp-text">{playerHp}/{maxPlayerHp}</span>
     </div>
 
     <!-- Streak -->
@@ -153,6 +178,66 @@
   .hp-text {
     font-size: 0.75rem;
     color: var(--color-muted, #94a3b8);
+  }
+
+  .player-section {
+    position: relative;
+    padding: 0.5rem 0.65rem 0.45rem;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(17, 24, 39, 0.9) 100%);
+    isolation: isolate;
+  }
+
+  .player-section::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(239, 68, 68, 0.25);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .player-section > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .player-section.hit {
+    border-color: rgba(248, 113, 113, 0.65);
+    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.3), 0 0 22px rgba(239, 68, 68, 0.32);
+    animation: energy-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  }
+
+  .player-section.hit::after {
+    animation: energy-flash 0.42s ease;
+  }
+
+  .player-section.hit .hp-bar-fill {
+    animation: player-hit-pulse 0.42s ease;
+    background: #f87171 !important;
+  }
+
+  @keyframes player-hit-pulse {
+    0% { transform: scaleY(1); filter: brightness(1); }
+    50% { transform: scaleY(1.25); filter: brightness(1.25); }
+    100% { transform: scaleY(1); filter: brightness(1); }
+  }
+
+  @keyframes energy-shake {
+    0%, 100% { transform: translateX(0); }
+    18% { transform: translateX(-4px); }
+    36% { transform: translateX(5px); }
+    54% { transform: translateX(-3px); }
+    72% { transform: translateX(3px); }
+  }
+
+  @keyframes energy-flash {
+    0% { opacity: 0; }
+    25% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
   @keyframes pulse {

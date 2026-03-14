@@ -20,5 +20,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
     "json5": "^2.2.3"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.4"
   }
 }

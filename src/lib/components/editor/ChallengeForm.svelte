@@ -1,7 +1,7 @@
 <script>
   import TypeSelector from './TypeSelector.svelte';
 
-  let { challenge = $bindable(), onremove } = $props();
+  let { challenge = $bindable(), onremove, onduplicate, errors = [] } = $props();
 
   function addOption() {
     if (!challenge.options) challenge.options = [];
@@ -87,6 +87,7 @@
     } else if (newType === 'multiple_choice') {
       Object.assign(challenge, base, {
         options: [{ text: '', correct: true, feedback: '' }, { text: '', correct: false, feedback: '' }],
+        hint: challenge.hint || '',
       });
     } else if (newType === 'true_false') {
       Object.assign(challenge, base, {
@@ -101,7 +102,6 @@
     if (!['drag_drop', 'true_false', 'ordering'].includes(newType)) {
       delete challenge.loot;
       delete challenge.correctAnswer;
-      delete challenge.hint;
     }
     if (newType !== 'multiple_choice') {
       delete challenge.options;
@@ -139,12 +139,12 @@
   <div class="form-body">
     {#if challenge.type === 'drag_drop'}
       <div class="field line-focus">
-        <label class="field-label">Resposta Correta</label>
+        <p class="field-label">Resposta Correta</p>
         <input class="field-input google-input" bind:value={challenge.correctAnswer} placeholder="Palavra que preenche a lacuna" />
       </div>
 
       <div class="field">
-        <label class="field-label">Opcoes Falsas (Loot da Mochila)</label>
+        <p class="field-label">Opcoes Falsas (Loot da Mochila)</p>
         {#each challenge.loot || [] as item, i}
           <div class="option-row">
             <span class="icon">-</span>
@@ -156,7 +156,7 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Bizu ao errar</label>
+        <p class="field-label">Bizu (opcional)</p>
         <textarea
           class="field-input google-textarea feedback-textarea"
           bind:value={challenge.hint}
@@ -167,7 +167,7 @@
 
     {:else if challenge.type === 'multiple_choice'}
       <div class="field">
-        <label class="field-label">Alternativas</label>
+        <p class="field-label">Alternativas</p>
         {#each challenge.options || [] as opt, i}
           <div class="option-block">
             <div class="option-row">
@@ -193,9 +193,19 @@
         </div>
       </div>
 
+      <div class="field">
+        <p class="field-label">Bizu (opcional)</p>
+        <textarea
+          class="field-input google-textarea feedback-textarea"
+          bind:value={challenge.hint}
+          placeholder="Dica geral para ajudar o aluno antes de responder"
+          rows="2"
+        ></textarea>
+      </div>
+
     {:else if challenge.type === 'true_false'}
       <div class="field">
-        <label class="field-label">Afirmacoes</label>
+        <p class="field-label">Afirmacoes</p>
         {#each challenge.statements || [] as statement, i}
           <div class="true-false-row">
             <input
@@ -219,7 +229,7 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Bizu ao errar</label>
+        <p class="field-label">Bizu (opcional)</p>
         <textarea
           class="field-input google-textarea feedback-textarea"
           bind:value={challenge.hint}
@@ -230,7 +240,7 @@
 
     {:else if challenge.type === 'ordering'}
       <div class="field">
-        <label class="field-label">Fragmentos (na ordem correta da frase)</label>
+        <p class="field-label">Fragmentos (na ordem correta da frase)</p>
         {#each challenge.fragments || [] as frag, i}
           <div class="option-row">
             <span class="order-num">{i + 1}.</span>
@@ -242,7 +252,7 @@
       </div>
 
       <div class="field">
-        <label class="field-label">Bizu ao errar</label>
+        <p class="field-label">Bizu (opcional)</p>
         <textarea
           class="field-input google-textarea feedback-textarea"
           bind:value={challenge.hint}
@@ -253,11 +263,26 @@
     {/if}
   </div>
 
+  {#if errors.length > 0}
+    <div class="inline-errors" role="status" aria-live="polite">
+      <p class="inline-errors-title">Falta ajustar nesta pergunta:</p>
+      <ul>
+        {#each errors as error}
+          <li>{error}</li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
   <div class="card-footer">
     <div class="footer-tools">
       <div class="field inline">
-        <label class="field-label-small">Dificuldade:</label>
-        <select class="field-input google-input small-input" bind:value={challenge.difficulty}>
+        <label class="field-label-small" for={"difficulty-" + (challenge.id || 'new')}>Dificuldade:</label>
+        <select
+          id={"difficulty-" + (challenge.id || 'new')}
+          class="field-input google-input small-input"
+          bind:value={challenge.difficulty}
+        >
           <option value={1}>Facil</option>
           <option value={2}>Medio</option>
           <option value={3}>Dificil</option>
@@ -266,6 +291,9 @@
     </div>
 
     <div class="footer-actions">
+      <button class="icon-btn" onclick={onduplicate} title="Duplicar Pergunta" aria-label="Duplicar Pergunta">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      </button>
       <button class="icon-btn danger remove-card" onclick={onremove} title="Excluir Pergunta">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
       </button>
@@ -478,9 +506,39 @@
     background: rgba(0,0,0,0.1);
   }
 
+  .inline-errors {
+    margin: 0 1.5rem 1rem 1.5rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 10px;
+    background: rgba(248, 113, 113, 0.1);
+    color: #fecaca;
+  }
+
+  .inline-errors-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+  }
+
+  .inline-errors ul {
+    margin: 0;
+    padding-left: 1.05rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.82rem;
+  }
+
   .footer-tools {
     display: flex;
     gap: 1.5rem;
+  }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
   }
 
   .icon-btn {

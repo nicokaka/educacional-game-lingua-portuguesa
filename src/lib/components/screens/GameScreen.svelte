@@ -1,5 +1,5 @@
 <script>
-  import { getState, startGame, submitAnswer, resetToMenu } from '../../stores/gameStore.svelte.js';
+  import { getState, startGame, submitAnswer, requestHint, resetToMenu } from '../../stores/gameStore.svelte.js';
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';
   import { initAudio } from '../../engine/feedbackEngine.js';
@@ -20,6 +20,8 @@
 
   let lastHp = $state(0);
   let isHit = $state(false);
+  let lastPlayerHp = $state(0);
+  let isPlayerHit = $state(false);
 
   $effect(() => {
     if (moduleId) {
@@ -44,6 +46,17 @@
       lastHp = game.monsterHp;
     } else if (game.monsterHp > lastHp) {
       lastHp = game.monsterHp;
+    }
+
+    if (lastPlayerHp === 0 && game.playerHp > 0) {
+      lastPlayerHp = game.playerHp;
+    }
+    if (game.playerHp < lastPlayerHp) {
+      isPlayerHit = true;
+      setTimeout(() => isPlayerHit = false, 460);
+      lastPlayerHp = game.playerHp;
+    } else if (game.playerHp > lastPlayerHp) {
+      lastPlayerHp = game.playerHp;
     }
   });
 
@@ -75,6 +88,7 @@
       manager = createChallengeManager(data.challenges);
       startGame(data, manager);
       lastHp = game.monsterHp;
+      lastPlayerHp = game.playerHp;
     } catch (e) {
       if (token !== activeLoadToken) return;
       console.debug('[GramQuest] loadModule:error', {
@@ -100,6 +114,10 @@
   function handleAnswer(answer) {
     if (!manager) return { correct: false };
     return submitAnswer(answer, manager);
+  }
+
+  function handleHint() {
+    return requestHint();
   }
 
   function handleRestart() {
@@ -150,6 +168,9 @@
       streak={game.streak}
       monsterHp={game.monsterHp}
       maxMonsterHp={game.maxMonsterHp}
+      playerHp={game.playerHp}
+      maxPlayerHp={game.maxPlayerHp}
+      playerHit={isPlayerHit}
       progress={game.progress}
       moduleName={game.moduleName}
     />
@@ -171,21 +192,19 @@
       <ChallengeHost
         challenge={game.currentChallenge}
         onAnswer={handleAnswer}
+        onHint={handleHint}
       />
     {/key}
     {/key}
 
   {:else if game.phase === 'victory'}
     <div class="victory-screen">
-      <div class="victory-icon" aria-hidden="true">
-        <svg viewBox="0 0 64 64" role="presentation">
-          <path d="M20 10h24v9a12 12 0 0 1-24 0z" fill="#fbbf24" />
-          <path d="M17 14H9a8 8 0 0 0 8 12h3" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" />
-          <path d="M47 14h8a8 8 0 0 1-8 12h-3" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" />
-          <path d="M26 31h12v8a8 8 0 0 1-12 0z" fill="#f59e0b" />
-          <rect x="24" y="39" width="16" height="6" rx="2" fill="#f59e0b" />
-          <rect x="18" y="47" width="28" height="6" rx="3" fill="#fcd34d" />
-        </svg>
+      <div class="ending-illustration victory-illustration">
+        <img
+          src="/prof-win.png"
+          alt="Professor comemorando a vitoria"
+          class="ending-professor victory-professor"
+        />
       </div>
       <h2 class="victory-title">Parabens!</h2>
       <p class="victory-subtitle">Voce derrotou todos os monstros!</p>
@@ -207,6 +226,41 @@
         </button>
         <button class="action-btn" onclick={goToMenu}>
           Escolher Outro Modulo
+        </button>
+      </div>
+    </div>
+
+  {:else if game.phase === 'game_over'}
+    <div class="game-over-screen">
+      <div class="ending-illustration lost-illustration">
+        <img
+          src="/prof-lost.png"
+          alt="Professor orientando tentar novamente"
+          class="ending-professor lost-professor"
+        />
+      </div>
+      <h2 class="game-over-title">Quase la!</h2>
+      <p class="game-over-subtitle">
+        O monstro venceu esta rodada. Respira, revisa o bizu e tenta de novo.
+      </p>
+
+      <div class="victory-stats">
+        <div class="stat-card">
+          <span class="stat-card-value">{game.score}</span>
+          <span class="stat-card-label">Pontos</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-value">{game.progress.current}</span>
+          <span class="stat-card-label">Respondidas</span>
+        </div>
+      </div>
+
+      <div class="victory-actions">
+        <button class="action-btn primary" onclick={handleRestart}>
+          Tentar Novamente
+        </button>
+        <button class="action-btn" onclick={goToMenu}>
+          Voltar ao Menu
         </button>
       </div>
     </div>
@@ -355,6 +409,7 @@
   }
 
   .victory-screen,
+  .game-over-screen,
   .error-screen {
     min-height: 100vh;
     display: flex;
@@ -366,26 +421,8 @@
     padding: 2rem;
   }
 
-  .victory-icon,
   .error-icon {
     font-size: 4rem;
-  }
-
-  .victory-icon {
-    width: 84px;
-    height: 84px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.9rem;
-    border-radius: 999px;
-    background: radial-gradient(circle at 30% 30%, rgba(251, 191, 36, 0.32), rgba(245, 158, 11, 0.08));
-    box-shadow: 0 10px 30px rgba(245, 158, 11, 0.18);
-  }
-
-  .victory-icon svg {
-    width: 100%;
-    height: 100%;
   }
 
   .victory-title {
@@ -397,6 +434,96 @@
   .victory-subtitle {
     font-size: 1.1rem;
     color: var(--color-muted);
+  }
+
+  .game-over-title {
+    font-size: 2.3rem;
+    font-weight: 800;
+    color: #fca5a5;
+  }
+
+  .game-over-subtitle {
+    font-size: 1.05rem;
+    color: var(--color-muted);
+    max-width: 560px;
+  }
+
+  .ending-illustration {
+    position: relative;
+    border-radius: 24px;
+    padding: 0.45rem;
+    animation: ending-enter 0.75s ease both;
+  }
+
+  .ending-illustration::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    pointer-events: none;
+  }
+
+  .victory-illustration {
+    background:
+      radial-gradient(circle at 15% 15%, rgba(74, 222, 128, 0.22), transparent 55%),
+      radial-gradient(circle at 90% 85%, rgba(96, 165, 250, 0.2), transparent 50%),
+      rgba(15, 23, 42, 0.34);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.38);
+  }
+
+  .lost-illustration {
+    background:
+      radial-gradient(circle at 15% 15%, rgba(248, 113, 113, 0.16), transparent 58%),
+      radial-gradient(circle at 85% 85%, rgba(244, 114, 182, 0.14), transparent 55%),
+      rgba(15, 23, 42, 0.34);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.34);
+  }
+
+  .ending-professor {
+    display: block;
+    width: min(370px, 82vw);
+    max-height: min(58vh, 560px);
+    height: auto;
+    object-fit: cover;
+    border-radius: 20px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.28);
+  }
+
+  .victory-professor {
+    border: 1px solid rgba(74, 222, 128, 0.2);
+  }
+
+  .lost-professor {
+    border: 1px solid rgba(248, 113, 113, 0.18);
+    animation: subtle-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes ending-enter {
+    0% { transform: translateY(18px) scale(0.96); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+
+  @keyframes subtle-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  @media (max-width: 640px) {
+    .ending-illustration {
+      padding: 0.35rem;
+      border-radius: 20px;
+    }
+
+    .ending-illustration::after {
+      border-radius: 20px;
+    }
+
+    .ending-professor {
+      width: min(92vw, 360px);
+      max-height: 52vh;
+      border-radius: 16px;
+    }
   }
 
   .victory-stats {

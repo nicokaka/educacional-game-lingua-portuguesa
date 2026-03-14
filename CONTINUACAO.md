@@ -1,7 +1,7 @@
 # 🧭 GramQuest — Guia de Continuação
 
-> Última atualização: 11/03/2026
-> Deadline do estágio: **25/03/2026** (faltam ~14 dias)
+> Última atualização: 14/03/2026
+> Deadline do estágio: **25/03/2026** (faltam ~11 dias)
 
 ---
 
@@ -65,10 +65,11 @@ GramQuest é um **jogo educacional gamificado de gramática portuguesa** para al
 ### 🔲 Falta fazer
 
 #### Fase F — Testes & Validação (prioridade altíssima)
-- [ ] Criar no editor um módulo de teste com os 4 tipos de desafio
-- [ ] Jogar o módulo completo garantindo fluxo de vitória
+- [x] Criar no editor um módulo de teste com os 4 tipos de desafio (coberto em E2E)
+- [x] Jogar o módulo completo garantindo fluxo de vitória (coberto em E2E)
 - [ ] Testar falhas intencionais no jogo (dano, game over)
-- [ ] Testar persistência de edição (editando módulo existente)
+  - Dano por resposta errada já coberto em E2E; `game over` ainda não existe na mecânica atual
+- [x] Testar persistência de edição (editando módulo existente, coberto em E2E)
 
 #### Fase G — Game Feel (prioridade média)
 - [ ] Arquivos de som `.ogg` reais (acerto, erro, vitória) em `public/sounds/`
@@ -78,18 +79,34 @@ GramQuest é um **jogo educacional gamificado de gramática portuguesa** para al
 - [ ] Efeito de partículas simples no acerto (CSS pseudo-elements)
 
 #### Fase H — PWA + Deploy (prioridade alta)
-- [ ] Instalar `vite-plugin-pwa`
-- [ ] Criar `public/manifest.json` (ícone, nome, cores do tema)
-- [ ] Configurar Service Worker para cache offline
-- [ ] Atualizar `index.html` com meta tags PWA e SEO
+- [x] Instalar `vite-plugin-pwa`
+- [x] Configurar manifesto PWA (atualmente definido em `vite.config.js`)
+- [x] Configurar Service Worker para cache offline
+- [x] Atualizar `index.html` com meta tags PWA e SEO
 - [ ] Deploy no Vercel (conectar repo GitHub, adicionar env vars)
 - [ ] Testar offline (Service Worker cacheia assets)
 - [ ] Testar em navigador de escola (Chrome/Edge)
 
 #### Fase I — Documentação (prioridade média)
-- [ ] Atualizar `README.md` com a nova arquitetura
-- [ ] Escrever `docs/MANUAL_PROFESSOR.md`
+- [x] Atualizar `README.md` com a nova arquitetura
+- [x] Escrever `docs/MANUAL_PROFESSOR.md`
 - [ ] Documentação do estágio
+
+---
+
+## Atualização técnica (14/03/2026)
+
+- Editor do professor aprimorado com:
+  - validação inline por pergunta
+  - status visual `Pronta/Incompleta`
+  - duplicação de pergunta
+  - auto-save de rascunho em `localStorage` + restauração
+- E2E modernizado:
+  - `playwright.config.js` agora cross-platform (sem caminhos fixos de Windows)
+  - novo arquivo `tests/e2e/pending-flows.spec.js` cobrindo:
+    - fluxo completo com 4 tipos de desafio até vitória
+    - dano por resposta errada
+    - persistência de edição de módulo
 
 ---
 

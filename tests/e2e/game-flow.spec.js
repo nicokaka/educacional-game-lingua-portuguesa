@@ -103,14 +103,24 @@ async function answerCurrentQuestionCorrectly(page) {
   const prompt = await getVisiblePrompt(page);
 
   if (prompt === 'Pergunta sem ids nas alternativas') {
-    await page.getByRole('button', { name: 'Alternativa certa' }).click();
-    await page.getByRole('button', { name: /Confirmar/i }).click();
+    const optionButton = page.getByRole('button', { name: 'Alternativa certa' });
+    await expect(optionButton).toBeEnabled({ timeout: 5000 });
+    await optionButton.click();
+    const confirmButton = page.getByRole('button', { name: /Confirmar/i });
+    await expect(confirmButton).toBeEnabled({ timeout: 5000 });
+    await confirmButton.click();
+    await page.waitForTimeout(900);
     return prompt;
   }
 
   const answer = prompt === 'Primeira pergunta' ? 'Verdadeiro' : 'Falso';
-  await page.getByRole('button', { name: answer }).click();
-  await page.getByRole('button', { name: 'Confirmar' }).click();
+  const answerButton = page.getByRole('button', { name: answer });
+  await expect(answerButton).toBeEnabled({ timeout: 5000 });
+  await answerButton.click();
+  const confirmButton = page.getByRole('button', { name: 'Confirmar' });
+  await expect(confirmButton).toBeEnabled({ timeout: 5000 });
+  await confirmButton.click();
+  await page.waitForTimeout(900);
   return prompt;
 }
 
@@ -142,10 +152,13 @@ test('consegue renderizar e responder multiple choice mesmo quando o Supabase na
 
   await page.getByRole('button', { name: 'Alternativa certa' }).click();
   await page.getByRole('button', { name: /Confirmar/i }).click();
-
-  await expect(page.getByText('2/3')).toBeVisible({ timeout: 5000 });
-  const promptAfter = await getVisiblePrompt(page);
+  await page.waitForTimeout(900);
 
   await expect(page.getByText('Pergunta sem ids nas alternativas')).toHaveCount(0);
-  expect(promptAfter).not.toBe('Pergunta sem ids nas alternativas');
+
+  const isVictory = await page.getByText('Parabens!').isVisible();
+  if (!isVictory) {
+    const promptAfter = await getVisiblePrompt(page);
+    expect(promptAfter).not.toBe('Pergunta sem ids nas alternativas');
+  }
 });

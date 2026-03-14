@@ -9,6 +9,7 @@ import { dispatchFeedback } from '../engine/feedbackEngine.js';
 import {
   advanceToNextChallengeState,
   applyCorrectAnswerState,
+  applyHintPenaltyState,
   applyWrongAnswerState,
   createInitialGameState,
   startGameState,
@@ -89,7 +90,47 @@ export function submitAnswer(answer, manager) {
 
   applyWrongAnswerState(state, challenge);
   dispatchFeedback('wrong');
+
+  if (state.phase === 'game_over') {
+    state.currentChallenge = null;
+  }
+
   return { correct: false, feedback };
+}
+
+export function requestHint() {
+  const challenge = state.currentChallenge;
+  if (!challenge || state.phase !== 'playing') {
+    return { available: false, message: 'Bizu indisponivel agora.' };
+  }
+
+  const hint = challenge.hint || challenge.explanation || '';
+  if (!hint) {
+    return { available: false, message: 'Este desafio nao possui bizu cadastrado.' };
+  }
+
+  if (state.hintUsedForQuestion) {
+    return {
+      available: true,
+      penaltyApplied: false,
+      hint,
+      penalty: { scorePenalty: 0, monsterHeal: 0 },
+    };
+  }
+
+  const penalty = applyHintPenaltyState(state, challenge);
+  dispatchFeedback('wrong');
+
+  if (state.phase === 'game_over') {
+    state.currentChallenge = null;
+  }
+
+  return {
+    available: true,
+    penaltyApplied: true,
+    hint,
+    penalty,
+  };
 }
 
 export function setError(message) {

@@ -1,5 +1,5 @@
 <script>
-  let { challenge, onAnswer } = $props();
+  let { challenge, onAnswer, onHint } = $props();
 
   let selectedId = $state(null);
   let feedbackText = $state('');
@@ -9,6 +9,18 @@
     if (answered) return;
     selectedId = optionId;
     feedbackText = '';
+  }
+
+  function askHint() {
+    if (answered) return;
+
+    const result = onHint?.();
+    if (!result?.available) {
+      feedbackText = result?.message || 'Bizu indisponivel agora.';
+      return;
+    }
+
+    feedbackText = result.hint;
   }
 
   function confirm() {
@@ -24,7 +36,7 @@
         answered = false;
         selectedId = null;
         feedbackText = '';
-      }, 2500);
+      }, 4800);
     }
   }
 </script>
@@ -53,9 +65,15 @@
     </button>
   {/if}
 
+  <div class="hint-row">
+    <button class="hint-btn" onclick={askHint} disabled={answered} aria-label="Pedir bizu" title="Pedir bizu">
+      💡
+    </button>
+  </div>
+
   {#if feedbackText}
     <div class="bizu-box">
-      <span class="bizu-label">BIZU</span>
+      <span class="bizu-label">BIZU DO PROFESSOR</span>
       <p>{feedbackText}</p>
     </div>
   {/if}
@@ -144,32 +162,75 @@
     box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
   }
 
+  .hint-row {
+    width: 100%;
+    max-width: 620px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .hint-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    background: rgba(250, 204, 21, 0.12);
+    color: #fde68a;
+    font-size: 1.2rem;
+    line-height: 1;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hint-btn:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.04);
+    background: rgba(250, 204, 21, 0.18);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
+  }
+
+  .hint-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
   .bizu-box {
     width: 100%;
-    max-width: 560px;
+    max-width: 620px;
     padding: 1rem 1.15rem;
-    border-radius: 14px;
-    border: 1px solid rgba(251, 191, 36, 0.35);
-    background: linear-gradient(180deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.08));
-    color: #fde68a;
+    border-radius: 16px;
+    border: 1px solid rgba(250, 204, 21, 0.45);
+    border-left: 4px solid #facc15;
+    background: linear-gradient(
+      135deg,
+      rgba(250, 204, 21, 0.18),
+      rgba(251, 191, 36, 0.08) 45%,
+      rgba(15, 23, 42, 0.25)
+    );
+    color: #fef3c7;
     text-align: left;
-    animation: fadeIn 0.25s ease;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.2);
+    animation: bizu-enter 0.25s ease;
   }
 
   .bizu-label {
     display: inline-block;
     margin-bottom: 0.4rem;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    color: #fcd34d;
+    letter-spacing: 0.09em;
+    color: #fde68a;
   }
 
   .bizu-box p {
-    line-height: 1.55;
+    line-height: 1.6;
+    font-size: 0.98rem;
   }
 
-  @keyframes fadeIn {
+  @keyframes bizu-enter {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
   }
