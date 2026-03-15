@@ -6,8 +6,9 @@
   let loading = $state(true);
   let error = $state('');
   let showHelp = $state(false);
-  const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Autor do Projeto';
-  const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Professor Orientador';
+  let helpSection = $state('instructions');
+  const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Nicolas Oliveira';
+  const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Sergio Claudino';
 
   async function load() {
     loading = true;
@@ -32,8 +33,9 @@
     navigate('/editor');
   }
 
-  function toggleHelp() {
-    showHelp = !showHelp;
+  function openHelp(section = 'instructions') {
+    helpSection = section;
+    showHelp = true;
   }
 
   function closeHelp() {
@@ -54,20 +56,30 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="menu-screen">
-  <button
-    class="help-fab"
-    onclick={toggleHelp}
-    aria-label="Ajuda e creditos"
-    title="Como jogar e creditos"
-  >
-    ?
-  </button>
-
   <div class="logo-section">
     <h1 class="game-title">
       <span class="title-alquimia">Alquimia</span>&nbsp;<span class="title-verbal">Verbal</span>
     </h1>
     <p class="game-subtitle">Derrote os monstros da gramática!</p>
+
+    <div class="quick-actions">
+      <button
+        class="quick-action-btn primary"
+        onclick={() => openHelp('instructions')}
+        aria-label="Abrir instrucoes do jogo"
+        title="Como jogar"
+      >
+        ❓ Instruções
+      </button>
+      <button
+        class="quick-action-btn secondary"
+        onclick={() => openHelp('credits')}
+        aria-label="Abrir creditos"
+        title="Creditos"
+      >
+        ℹ️ Créditos
+      </button>
+    </div>
   </div>
 
   <div class="menu-monster">
@@ -125,20 +137,38 @@
       onmousedown={stopMouseDown}
     >
       <div class="help-header">
-        <h2 class="help-title">🧭 Como jogar</h2>
+        <h2 class="help-title">{helpSection === 'credits' ? '👥 Créditos' : '🧭 Como jogar'}</h2>
         <button class="help-close" onclick={closeHelp} aria-label="Fechar ajuda">x</button>
       </div>
 
-      <p class="help-line">1. Escolha um modulo e comece a batalha.</p>
-      <p class="help-line">2. Acerte os desafios para reduzir o HP do monstro.</p>
-      <p class="help-line">3. Se errar, voce perde energia. Se chegar a zero, e game over.</p>
-      <p class="help-line">4. O bizu ajuda, mas tambem custa energia.</p>
+      <div class="help-tabs">
+        <button
+          class="help-tab-btn"
+          class:active={helpSection === 'instructions'}
+          onclick={() => openHelp('instructions')}
+        >
+          Instruções
+        </button>
+        <button
+          class="help-tab-btn"
+          class:active={helpSection === 'credits'}
+          onclick={() => openHelp('credits')}
+        >
+          Créditos
+        </button>
+      </div>
 
-      <div class="help-divider"></div>
-
-      <h3 class="help-subtitle">👥 Creditos</h3>
-      <p class="credits-line"><strong>Criador:</strong> {creatorName}</p>
-      <p class="credits-line"><strong>Professor orientador:</strong> {mentorName}</p>
+      {#if helpSection === 'instructions'}
+        <p class="help-line">1. Escolha um módulo e comece a batalha.</p>
+        <p class="help-line">2. Acerte os desafios para reduzir o HP do monstro.</p>
+        <p class="help-line">3. Se errar, você perde energia. Se chegar a zero, é game over.</p>
+        <p class="help-line">4. O bizu ajuda, mas também custa energia.</p>
+      {:else}
+        <h3 class="help-subtitle">Equipe do jogo</h3>
+        <p class="credits-line"><strong>Criador:</strong> {creatorName}</p>
+        <p class="credits-line"><strong>Professor:</strong> {mentorName}</p>
+        <p class="credits-line"><strong>Projeto:</strong> Alquimia Verbal — aprendizado de língua portuguesa em formato de jogo.</p>
+      {/if}
     </div>
   </div>
 {/if}
@@ -155,29 +185,6 @@
     padding: 2rem;
     animation: fadeIn 0.6s ease;
     position: relative;
-  }
-
-  .help-fab {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 1px solid rgba(139, 92, 246, 0.55);
-    background: linear-gradient(140deg, rgba(139, 92, 246, 0.2), rgba(30, 41, 59, 0.95));
-    color: var(--color-text);
-    font-size: 1.2rem;
-    font-weight: 800;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
-    z-index: 25;
-    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-  }
-
-  .help-fab:hover {
-    transform: translateY(-1px) scale(1.03);
-    border-color: var(--color-primary);
-    box-shadow: 0 10px 24px rgba(139, 92, 246, 0.3);
   }
 
   .logo-section {
@@ -201,6 +208,46 @@
   .game-subtitle {
     font-size: 1.1rem;
     color: var(--color-muted);
+  }
+
+  .quick-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-top: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .quick-action-btn {
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+  }
+
+  .quick-action-btn.primary {
+    background: rgba(139, 92, 246, 0.18);
+    color: #efe8ff;
+    border-color: rgba(139, 92, 246, 0.75);
+  }
+
+  .quick-action-btn.primary:hover {
+    background: rgba(139, 92, 246, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .quick-action-btn.secondary {
+    background: rgba(34, 197, 94, 0.12);
+    color: #dcfce7;
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+
+  .quick-action-btn.secondary:hover {
+    background: rgba(34, 197, 94, 0.2);
+    transform: translateY(-1px);
   }
 
   .menu-monster {
@@ -395,6 +442,29 @@
     margin-bottom: 0.45rem;
   }
 
+  .help-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .help-tab-btn {
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.7);
+    color: var(--color-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0.34rem 0.72rem;
+    transition: all var(--transition-fast);
+  }
+
+  .help-tab-btn.active {
+    color: var(--color-text);
+    border-color: rgba(139, 92, 246, 0.8);
+    background: rgba(139, 92, 246, 0.2);
+  }
+
   .help-title {
     font-size: 1.02rem;
     font-weight: 700;
@@ -429,12 +499,6 @@
   .credits-line strong {
     color: var(--color-text);
     font-weight: 600;
-  }
-
-  .help-divider {
-    height: 1px;
-    background: var(--color-border);
-    margin: 0.7rem 0;
   }
 
   .help-subtitle {
@@ -519,11 +583,13 @@
       font-size: 0.9rem;
     }
 
-    .help-fab {
-      width: 40px;
-      height: 40px;
-      top: 0.7rem;
-      right: 0.7rem;
+    .quick-actions {
+      gap: 0.45rem;
+    }
+
+    .quick-action-btn {
+      font-size: 0.78rem;
+      padding: 0.38rem 0.68rem;
     }
 
     .help-modal {
