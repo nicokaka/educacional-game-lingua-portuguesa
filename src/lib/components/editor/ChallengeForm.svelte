@@ -104,6 +104,9 @@
       });
     } else if (newType === 'ordering') {
       Object.assign(challenge, base, { fragments: ['', ''], shuffled: true, hint: '' });
+    } else if (newType === 'open_text') {
+      Object.assign(challenge, base);
+      delete challenge.hint;
     }
 
     if (!['drag_drop', 'true_false', 'ordering'].includes(newType)) {
@@ -120,6 +123,9 @@
     if (newType !== 'ordering') {
       delete challenge.fragments;
       delete challenge.shuffled;
+    }
+    if (newType === 'open_text') {
+      delete challenge.hint;
     }
 
     challenge.type = newType;
@@ -328,6 +334,11 @@
           placeholder="Dica curta para ajudar o aluno a ordenar a frase"
           rows="2"
         ></textarea>
+      </div>
+    {:else if challenge.type === 'open_text'}
+      <div class="field">
+        <p class="field-label">Resposta do aluno</p>
+        <p class="field-hint">O aluno respondera em texto livre. A resposta sera enviada para correcao posterior do professor.</p>
       </div>
     {/if}
 

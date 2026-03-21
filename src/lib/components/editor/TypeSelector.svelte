@@ -6,6 +6,7 @@
     { value: 'multiple_choice', label: '📝 Múltipla Escolha', desc: 'Escolher entre 4 alternativas' },
     { value: 'true_false', label: '✅ Verdadeiro ou Falso', desc: 'Marcar cada afirmação como verdadeira ou falsa' },
     { value: 'ordering', label: '🔢 Ordenação', desc: 'Colocar fragmentos na ordem certa' },
+    { value: 'open_text', label: '✍️ Resposta Aberta', desc: 'Aluno responde em texto para correção do professor' },
   ];
 
   function handleChange(e) {

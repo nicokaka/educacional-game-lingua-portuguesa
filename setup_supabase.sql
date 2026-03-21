@@ -6,6 +6,7 @@
 -- Limpa tabelas anteriores (se existirem)
 DROP TRIGGER IF EXISTS set_updated_at ON modules;
 DROP FUNCTION IF EXISTS update_updated_at();
+DROP TABLE IF EXISTS open_text_responses CASCADE;
 DROP TABLE IF EXISTS module_attempts CASCADE;
 DROP TABLE IF EXISTS challenges CASCADE;
 DROP TABLE IF EXISTS modules CASCADE;
@@ -23,12 +24,25 @@ CREATE TABLE modules (
 CREATE TABLE challenges (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('drag_drop', 'multiple_choice', 'true_false', 'ordering')),
+  type TEXT NOT NULL CHECK (type IN ('drag_drop', 'multiple_choice', 'true_false', 'ordering', 'open_text')),
   prompt TEXT NOT NULL,
   difficulty SMALLINT NOT NULL DEFAULT 1 CHECK (difficulty BETWEEN 1 AND 3),
   data JSONB NOT NULL DEFAULT '{}',
   sort_order SMALLINT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Tabela: open_text_responses (respostas dissertativas dos alunos)
+CREATE TABLE open_text_responses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  challenge_id UUID NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+  student_name TEXT NOT NULL,
+  response_text TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  teacher_feedback TEXT,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Tabela: module_attempts (tentativas dos alunos por modulo)
@@ -66,10 +80,12 @@ CREATE TRIGGER set_updated_at
 ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE module_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE open_text_responses ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Modules are viewable by everyone" ON modules FOR SELECT USING (true);
 CREATE POLICY "Challenges are viewable by everyone" ON challenges FOR SELECT USING (true);
 CREATE POLICY "Module attempts are viewable by everyone" ON module_attempts FOR SELECT USING (true);
+CREATE POLICY "Open text responses are viewable by everyone" ON open_text_responses FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert modules" ON modules FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update modules" ON modules FOR UPDATE USING (true);
 CREATE POLICY "Anyone can delete modules" ON modules FOR DELETE USING (true);
@@ -77,6 +93,8 @@ CREATE POLICY "Anyone can insert challenges" ON challenges FOR INSERT WITH CHECK
 CREATE POLICY "Anyone can update challenges" ON challenges FOR UPDATE USING (true);
 CREATE POLICY "Anyone can delete challenges" ON challenges FOR DELETE USING (true);
 CREATE POLICY "Anyone can insert module attempts" ON module_attempts FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can insert open text responses" ON open_text_responses FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update open text responses" ON open_text_responses FOR UPDATE USING (true);
 
 -- ==========================================
 -- Dados de exemplo

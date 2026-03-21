@@ -116,14 +116,14 @@ export function getPlayerDamage(challenge) {
 }
 
 export function getModuleMonsterHp(moduleData) {
-  const challenges = moduleData?.challenges || [];
+  const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
   if (challenges.length === 0) return 100;
 
   return challenges.reduce((total, challenge) => total + getChallengeDamage(challenge), 0);
 }
 
 export function getModulePlayerHp(moduleData) {
-  const challenges = moduleData?.challenges || [];
+  const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
   if (challenges.length === 0) return 100;
 
   // Energia suficiente para permitir erros sem tornar o jogo trivial.
@@ -131,7 +131,7 @@ export function getModulePlayerHp(moduleData) {
 }
 
 export function getModuleMaxScore(moduleData) {
-  const challenges = moduleData?.challenges || [];
+  const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
   if (challenges.length === 0) return 0;
 
   let streak = 0;

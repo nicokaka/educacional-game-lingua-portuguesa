@@ -76,6 +76,7 @@ export async function fetchModuleWithChallenges(moduleId, options = {}) {
       normalizeChallenge({
         ...challengeRow.data,
         id: challengeRow.data?.id || challengeRow.id || (Date.now() + index),
+        challengeRecordId: challengeRow.id,
         type: challengeRow.type,
         prompt: challengeRow.prompt,
         difficulty: challengeRow.difficulty,

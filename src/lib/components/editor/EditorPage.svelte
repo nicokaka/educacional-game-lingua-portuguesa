@@ -1,5 +1,6 @@
 <script>
   import ModuleEditor from './ModuleEditor.svelte';
+  import OpenTextResponsesPanel from './OpenTextResponsesPanel.svelte';
   import { fetchModules, fetchModuleWithChallenges, deleteModule } from '../../supabase/modules.js';
   import { navigate } from '../../router.svelte.js';
 
@@ -16,6 +17,7 @@
   let modules = $state([]);
   let loading = $state(false);
   let editing = $state(null); // null = lista, 'new' = novo, { id, ... } = editando
+  let reviewingResponses = $state(null);
   let uiError = $state('');
 
   let remainingLockSeconds = $derived(Math.max(0, Math.ceil((lockUntil - lockClock) / 1000)));
@@ -72,11 +74,13 @@
 
   function startNewModule() {
     uiError = '';
+    reviewingResponses = null;
     editing = 'new';
   }
 
   async function editModule(mod) {
     uiError = '';
+    reviewingResponses = null;
     try {
       const full = await fetchModuleWithChallenges(mod.id);
       editing = {
@@ -89,6 +93,12 @@
       console.error('Erro ao carregar módulo:', e);
       uiError = `Nao foi possivel abrir o modulo: ${e.message}`;
     }
+  }
+
+  function openResponses(mod) {
+    uiError = '';
+    editing = null;
+    reviewingResponses = mod;
   }
 
   async function handleDelete(mod) {
@@ -105,6 +115,7 @@
 
   function handleSaved() {
     editing = null;
+    reviewingResponses = null;
     loadModules();
   }
 
@@ -155,7 +166,7 @@
       </div>
     </div>
 
-  {:else if editing === null}
+  {:else if editing === null && reviewingResponses === null}
     <!-- ═══ LISTA DE MÓDULOS ═══ -->
     <div class="modules-list-page">
       <div class="page-header">
@@ -191,6 +202,7 @@
                 <span class="module-meta">{mod.author} · {mod.challengeCount} desafios</span>
               </div>
               <div class="module-actions">
+                <button class="action-btn review" onclick={() => openResponses(mod)}>📝 Respostas</button>
                 <button class="action-btn edit" onclick={() => editModule(mod)}>✏️ Editar</button>
                 <button class="action-btn delete" onclick={() => handleDelete(mod)} title="Excluir modulo">
                   🗑️ Excluir
@@ -200,6 +212,15 @@
           {/each}
         </div>
       {/if}
+    </div>
+
+  {:else if reviewingResponses !== null}
+    <div class="editor-wrapper">
+      <OpenTextResponsesPanel
+        moduleId={reviewingResponses.id}
+        moduleTitle={reviewingResponses.title}
+        onBack={() => { reviewingResponses = null; }}
+      />
     </div>
 
   {:else}
@@ -489,6 +510,11 @@
   .action-btn.edit:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
+  }
+
+  .action-btn.review:hover {
+    border-color: #38bdf8;
+    color: #38bdf8;
   }
 
   .action-btn.delete:hover {

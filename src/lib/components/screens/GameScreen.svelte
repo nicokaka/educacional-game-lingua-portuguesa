@@ -1,9 +1,10 @@
 <script>
-  import { getState, startGame, submitAnswer, requestHint, resetToMenu } from '../../stores/gameStore.svelte.js';
+  import { getState, startGame, submitAnswer, requestHint, resetToMenu, loadNextChallenge } from '../../stores/gameStore.svelte.js';
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';
   import { initAudio, playSound } from '../../engine/feedbackEngine.js';
   import { createModuleAttempt } from '../../supabase/attempts.js';
+  import { createOpenTextResponse } from '../../supabase/writtenResponses.js';
   import ChallengeHost from '../ChallengeHost.svelte';
   import HUD from '../shared/HUD.svelte';
   import MonsterSvg from './MonsterSvg.svelte';
@@ -167,7 +168,60 @@
 
   function handleAnswer(answer) {
     if (!manager) return { correct: false };
+    if (game.currentChallenge?.type === 'open_text') {
+      return handleOpenTextAnswer(answer);
+    }
     return submitAnswer(answer, manager);
+  }
+
+  async function handleOpenTextAnswer(answer) {
+    const challenge = game.currentChallenge;
+    const studentName = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
+      : '';
+
+    if (!challenge) {
+      return { submitted: false, message: 'Desafio indisponivel no momento.' };
+    }
+
+    if (!studentName) {
+      return { submitted: false, message: 'Seu nome nao foi encontrado. Volte ao menu e informe novamente.' };
+    }
+
+    const responseText = answer?.trim?.() || '';
+    if (!responseText) {
+      return { submitted: false, message: 'Digite uma resposta antes de enviar.' };
+    }
+
+    if (!challenge.challengeRecordId) {
+      return { submitted: false, message: 'Nao foi possivel identificar esta pergunta para salvar sua resposta.' };
+    }
+
+    try {
+      await createOpenTextResponse({
+        module_id: moduleId,
+        challenge_id: challenge.challengeRecordId,
+        student_name: studentName,
+        response_text: responseText,
+        status: 'pending',
+      });
+
+      try {
+        loadNextChallenge(manager);
+      } catch (error) {
+        console.error('[Alquimia Verbal] Falha ao avancar apos resposta aberta:', error.message);
+      }
+
+      return {
+        submitted: true,
+        message: 'Resposta enviada para correcao do professor.',
+      };
+    } catch (error) {
+      return {
+        submitted: false,
+        message: error.message || 'Nao foi possivel enviar sua resposta.',
+      };
+    }
   }
 
   function handleHint() {

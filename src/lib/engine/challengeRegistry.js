@@ -7,6 +7,7 @@
 
 import DragDropRenderer from '../components/renderers/DragDropRenderer.svelte';
 import MultipleChoiceRenderer from '../components/renderers/MultipleChoiceRenderer.svelte';
+import OpenTextRenderer from '../components/renderers/OpenTextRenderer.svelte';
 import TrueFalseRenderer from '../components/renderers/TrueFalseRenderer.svelte';
 import OrderingRenderer from '../components/renderers/OrderingRenderer.svelte';
 
@@ -15,6 +16,7 @@ const renderers = {
   multiple_choice: MultipleChoiceRenderer,
   true_false: TrueFalseRenderer,
   ordering: OrderingRenderer,
+  open_text: OpenTextRenderer,
 };
 
 const validators = {
