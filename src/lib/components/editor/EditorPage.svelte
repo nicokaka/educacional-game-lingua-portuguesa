@@ -1,5 +1,6 @@
 <script>
   import ModuleEditor from './ModuleEditor.svelte';
+  import ClassroomsPanel from './ClassroomsPanel.svelte';
   import OpenTextResponsesPanel from './OpenTextResponsesPanel.svelte';
   import { fetchModules, fetchModuleWithChallenges, deleteModule } from '../../supabase/modules.js';
   import { navigate } from '../../router.svelte.js';
@@ -18,6 +19,7 @@
   let loading = $state(false);
   let editing = $state(null); // null = lista, 'new' = novo, { id, ... } = editando
   let reviewingResponses = $state(null);
+  let managingClassrooms = $state(false);
   let uiError = $state('');
 
   let remainingLockSeconds = $derived(Math.max(0, Math.ceil((lockUntil - lockClock) / 1000)));
@@ -75,12 +77,14 @@
   function startNewModule() {
     uiError = '';
     reviewingResponses = null;
+    managingClassrooms = false;
     editing = 'new';
   }
 
   async function editModule(mod) {
     uiError = '';
     reviewingResponses = null;
+    managingClassrooms = false;
     try {
       const full = await fetchModuleWithChallenges(mod.id);
       editing = {
@@ -98,7 +102,15 @@
   function openResponses(mod) {
     uiError = '';
     editing = null;
+    managingClassrooms = false;
     reviewingResponses = mod;
+  }
+
+  function openClassrooms() {
+    uiError = '';
+    editing = null;
+    reviewingResponses = null;
+    managingClassrooms = true;
   }
 
   async function handleDelete(mod) {
@@ -116,6 +128,7 @@
   function handleSaved() {
     editing = null;
     reviewingResponses = null;
+    managingClassrooms = false;
     loadModules();
   }
 
@@ -166,12 +179,13 @@
       </div>
     </div>
 
-  {:else if editing === null && reviewingResponses === null}
+  {:else if editing === null && reviewingResponses === null && !managingClassrooms}
     <!-- ═══ LISTA DE MÓDULOS ═══ -->
     <div class="modules-list-page">
       <div class="page-header">
         <h2 class="page-title">📚 Seus Módulos</h2>
         <div class="header-actions">
+          <button class="new-btn" onclick={openClassrooms}>🏫 Turmas</button>
           <button class="new-btn" onclick={startNewModule}>+ Novo Módulo</button>
           <button class="back-btn" onclick={goToMenu}>← Menu</button>
         </div>
@@ -220,6 +234,13 @@
         moduleId={reviewingResponses.id}
         moduleTitle={reviewingResponses.title}
         onBack={() => { reviewingResponses = null; }}
+      />
+    </div>
+
+  {:else if managingClassrooms}
+    <div class="editor-wrapper">
+      <ClassroomsPanel
+        onBack={() => { managingClassrooms = false; }}
       />
     </div>
 

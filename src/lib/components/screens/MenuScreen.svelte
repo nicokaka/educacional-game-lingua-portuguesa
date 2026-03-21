@@ -2,16 +2,23 @@
   import { navigate } from '../../router.svelte.js';
   import { fetchModules } from '../../supabase/modules.js';
   import { fetchModuleLeaderboard } from '../../supabase/attempts.js';
+  import { fetchActiveClassrooms } from '../../supabase/classrooms.js';
 
   const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
+  const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
+  const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
 
   let modules = $state([]);
+  let classrooms = $state([]);
   let loading = $state(true);
   let error = $state('');
+  let classroomsError = $state('');
   let showHelp = $state(false);
   let helpSection = $state('instructions');
   let showStudentModal = $state(false);
   let selectedModuleId = $state('');
+  let studentModalMode = $state('play');
+  let selectedClassroomId = $state('');
   let studentName = $state('');
   let studentNameError = $state('');
   let studentNameInput = $state();
@@ -27,8 +34,25 @@
   async function load() {
     loading = true;
     error = '';
+    classroomsError = '';
     try {
-      modules = await fetchModules();
+      const [modulesResult, classroomsResult] = await Promise.allSettled([
+        fetchModules(),
+        fetchActiveClassrooms(),
+      ]);
+
+      if (modulesResult.status === 'rejected') {
+        throw modulesResult.reason;
+      }
+
+      modules = modulesResult.value || [];
+
+      if (classroomsResult.status === 'fulfilled') {
+        classrooms = classroomsResult.value || [];
+      } else {
+        classrooms = [];
+        classroomsError = classroomsResult.reason?.message || 'Nao foi possivel carregar as turmas.';
+      }
     } catch (e) {
       error = e.message;
     } finally {
@@ -53,9 +77,19 @@
     return window.sessionStorage.getItem(STUDENT_NAME_KEY) || '';
   }
 
-  function openStudentModal(moduleId) {
+  function getSavedClassroomId() {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem(CLASSROOM_ID_KEY) || '';
+  }
+
+  function openStudentModal(moduleId = '', mode = 'play') {
     selectedModuleId = moduleId;
+    studentModalMode = mode;
     studentName = getSavedStudentName();
+    const savedClassroomId = getSavedClassroomId();
+    selectedClassroomId = classrooms.some((classroom) => classroom.id === savedClassroomId)
+      ? savedClassroomId
+      : classrooms[0]?.id || '';
     studentNameError = '';
     showStudentModal = true;
   }
@@ -63,28 +97,64 @@
   function closeStudentModal() {
     showStudentModal = false;
     selectedModuleId = '';
+    studentModalMode = 'play';
+    selectedClassroomId = '';
     studentNameError = '';
   }
 
   function playModule(id) {
-    openStudentModal(id);
+    openStudentModal(id, 'play');
+  }
+
+  function openStudentReviews() {
+    if (getSavedStudentName().trim() && getSavedClassroomId().trim()) {
+      navigate('/reviews');
+      return;
+    }
+
+    openStudentModal('', 'reviews');
   }
 
   function confirmStudentName(event) {
     event?.preventDefault?.();
 
     const trimmedName = studentName.trim();
+    const selectedClassroom = classrooms.find((classroom) => classroom.id === selectedClassroomId);
+
+    if (classroomsError) {
+      studentNameError = classroomsError;
+      return;
+    }
+
+    if (classrooms.length === 0) {
+      studentNameError = 'Nenhuma turma esta disponivel agora. Peça ao professor para cadastrar uma turma.';
+      return;
+    }
+
+    if (!selectedClassroom) {
+      studentNameError = 'Escolha sua turma para continuar.';
+      return;
+    }
+
     if (!trimmedName) {
-      studentNameError = 'Digite seu nome para iniciar o modulo.';
+      studentNameError = 'Digite seu nome para continuar.';
       return;
     }
 
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem(STUDENT_NAME_KEY, trimmedName);
+      window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
+      window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
     }
 
     const moduleId = selectedModuleId;
+    const modalMode = studentModalMode;
     closeStudentModal();
+    if (modalMode === 'reviews') {
+      navigate('/reviews');
+      return;
+    }
+
     navigate(`/play/${moduleId}`);
   }
 
@@ -102,7 +172,8 @@
 
     try {
       const studentName = getSavedStudentName().trim();
-      const result = await fetchModuleLeaderboard(moduleData.id, studentName);
+      const classroomId = getSavedClassroomId().trim();
+      const result = await fetchModuleLeaderboard(moduleData.id, studentName, classroomId);
       leaderboardTop3 = result.top3;
       currentStudentLeaderboard = result.currentStudent;
     } catch (error) {
@@ -174,6 +245,14 @@
         title="Creditos"
       >
         ℹ️ Créditos
+      </button>
+      <button
+        class="quick-action-btn tertiary"
+        onclick={openStudentReviews}
+        aria-label="Ver minhas correcoes"
+        title="Ver minhas correcoes"
+      >
+        📝 Ver minhas correções
       </button>
     </div>
   </div>
@@ -292,11 +371,35 @@
     >
       <form onsubmit={confirmStudentName}>
         <div class="help-header">
-          <h2 class="help-title">Antes de jogar</h2>
+        <h2 class="help-title">{studentModalMode === 'reviews' ? 'Ver minhas correções' : 'Antes de jogar'}</h2>
           <button type="button" class="help-close" onclick={closeStudentModal} aria-label="Fechar">x</button>
         </div>
 
-        <p class="student-copy">Digite seu nome para entrar no modulo.</p>
+        <p class="student-copy">
+          {studentModalMode === 'reviews'
+            ? 'Digite seu nome para consultar suas respostas abertas corrigidas.'
+            : 'Digite seu nome para entrar no modulo.'}
+        </p>
+
+        <div class="student-field">
+          <label class="field-label" for="student-classroom-select">Turma</label>
+          <select
+            id="student-classroom-select"
+            class="student-input student-select"
+            bind:value={selectedClassroomId}
+            disabled={classrooms.length === 0}
+          >
+            <option value="" disabled selected={selectedClassroomId === ''}>Selecione sua turma</option>
+            {#each classrooms as classroom (classroom.id)}
+              <option value={classroom.id}>{classroom.name}</option>
+            {/each}
+          </select>
+          {#if classrooms.length === 0}
+            <p class="student-helper">
+              {classroomsError || 'Nenhuma turma cadastrada ainda. Peça ao professor para criar uma turma.'}
+            </p>
+          {/if}
+        </div>
 
         <div class="student-field">
           <label class="field-label" for="student-name-input">Nome do aluno</label>
@@ -319,7 +422,7 @@
             Cancelar
           </button>
           <button type="submit" class="student-btn primary">
-            Comecar
+            {studentModalMode === 'reviews' ? 'Ver correções' : 'Comecar'}
           </button>
         </div>
       </form>
@@ -368,6 +471,9 @@
               <div class="leaderboard-main">
                 <div class="leaderboard-name">{entry.student_name}</div>
                 <div class="leaderboard-meta">
+                  {#if entry.classroom_name}
+                    <span>{entry.classroom_name}</span>
+                  {/if}
                   <span>{Math.round(entry.percentage * 100)}%</span>
                   <span>{entry.score}/{entry.max_score}</span>
                   {#if entry.completed}
@@ -389,6 +495,9 @@
           <div class="leaderboard-main">
             <div class="leaderboard-name">{currentStudentLeaderboard.student_name}</div>
             <div class="leaderboard-meta">
+              {#if currentStudentLeaderboard.classroom_name}
+                <span>{currentStudentLeaderboard.classroom_name}</span>
+              {/if}
               <span>{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
               <span>{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score}</span>
               {#if currentStudentLeaderboard.completed}
@@ -478,6 +587,17 @@
 
   .quick-action-btn.secondary:hover {
     background: rgba(34, 197, 94, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .quick-action-btn.tertiary {
+    background: rgba(56, 189, 248, 0.12);
+    color: #dbeafe;
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+
+  .quick-action-btn.tertiary:hover {
+    background: rgba(56, 189, 248, 0.22);
     transform: translateY(-1px);
   }
 
@@ -872,6 +992,16 @@
     font-size: 0.84rem;
     color: var(--color-wrong);
     margin-top: 0.7rem;
+  }
+
+  .student-helper {
+    font-size: 0.82rem;
+    color: var(--color-muted);
+    line-height: 1.45;
+  }
+
+  .student-select {
+    appearance: none;
   }
 
   .student-actions {

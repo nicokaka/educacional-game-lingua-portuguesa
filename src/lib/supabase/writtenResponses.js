@@ -5,6 +5,8 @@ import { supabase } from './client.js';
  * @param {{
  *   module_id: string,
  *   challenge_id: string,
+ *   classroom_id?: string,
+ *   classroom_name?: string,
  *   student_name: string,
  *   response_text: string,
  *   status: string
@@ -79,4 +81,71 @@ export async function updateOpenTextResponseReview(responseId, review) {
   }
 
   return { reviewed_at: reviewedAt };
+}
+
+/**
+ * Busca respostas abertas do aluno com enriquecimento de modulo e pergunta.
+ * @param {string} studentName
+ */
+export async function fetchStudentOpenTextResponses(studentName, classroomId = '') {
+  const trimmedName = studentName?.trim?.() || '';
+  const trimmedClassroomId = classroomId?.trim?.() || '';
+  if (!trimmedName) return [];
+
+  let query = supabase
+    .from('open_text_responses')
+    .select('id, module_id, challenge_id, classroom_id, classroom_name, student_name, response_text, status, teacher_feedback, created_at, reviewed_at')
+    .eq('student_name', trimmedName)
+    .order('created_at', { ascending: false });
+
+  if (trimmedClassroomId) {
+    query = query.or(`classroom_id.eq.${trimmedClassroomId},classroom_id.is.null`);
+  }
+
+  const { data: responseRows, error: responseError } = await query;
+
+  if (responseError) {
+    throw new Error(`Erro ao carregar suas respostas: ${responseError.message}`);
+  }
+
+  const challengeIds = [...new Set((responseRows || []).map((row) => row.challenge_id).filter(Boolean))];
+  const moduleIds = [...new Set((responseRows || []).map((row) => row.module_id).filter(Boolean))];
+
+  let promptById = new Map();
+  let moduleTitleById = new Map();
+
+  if (challengeIds.length > 0) {
+    const { data: challengeRows, error: challengeError } = await supabase
+      .from('challenges')
+      .select('id, prompt')
+      .in('id', challengeIds);
+
+    if (challengeError) {
+      console.error('Erro ao carregar perguntas das respostas do aluno:', challengeError);
+    } else {
+      promptById = new Map((challengeRows || []).map((challenge) => [challenge.id, challenge.prompt]));
+    }
+  }
+
+  if (moduleIds.length > 0) {
+    const { data: moduleRows, error: moduleError } = await supabase
+      .from('modules')
+      .select('id, title')
+      .in('id', moduleIds);
+
+    if (moduleError) {
+      console.error('Erro ao carregar modulos das respostas do aluno:', moduleError);
+    } else {
+      moduleTitleById = new Map((moduleRows || []).map((module) => [module.id, module.title]));
+    }
+  }
+
+  return (responseRows || []).map((row) => ({
+    ...row,
+    status: row.status || 'pending',
+    teacher_feedback: row.teacher_feedback || '',
+    classroom_name: row.classroom_name || (row.classroom_id ? 'Turma removida ou indisponivel' : 'Turma antiga ou nao informada'),
+    prompt: promptById.get(row.challenge_id) || 'Pergunta removida ou indisponivel',
+    module_title: moduleTitleById.get(row.module_id) || 'Modulo removido ou indisponivel',
+  }));
 }

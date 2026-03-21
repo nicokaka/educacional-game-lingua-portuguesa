@@ -4,6 +4,7 @@
   import MenuScreen from './lib/components/screens/MenuScreen.svelte';
   import GameScreen from './lib/components/screens/GameScreen.svelte';
   import EditorPage from './lib/components/editor/EditorPage.svelte';
+  import OpenTextCorrectionsScreen from './lib/components/screens/OpenTextCorrectionsScreen.svelte';
 
   let router = getRouter();
 </script>
@@ -17,6 +18,8 @@
     {/key}
   {:else if router.route === 'editor'}
     <EditorPage />
+  {:else if router.route === 'reviews'}
+    <OpenTextCorrectionsScreen />
   {:else}
     <MenuScreen />
   {/if}

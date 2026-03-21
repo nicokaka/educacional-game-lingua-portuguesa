@@ -12,6 +12,8 @@
 
   const LOAD_TIMEOUT_MS = 12000;
   const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
+  const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
+  const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
   let { moduleId } = $props();
 
   let game = getState();
@@ -33,7 +35,8 @@
     if (moduleId) {
       if (typeof window !== 'undefined') {
         const studentName = window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim();
-        if (!studentName) {
+        const classroomId = window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim();
+        if (!studentName || !classroomId) {
           navigate('/');
           return;
         }
@@ -95,12 +98,20 @@
       const studentName = typeof window !== 'undefined'
         ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
         : '';
+      const classroomId = typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim()
+        : '';
+      const classroomName = typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(CLASSROOM_NAME_KEY)?.trim()
+        : '';
 
-      if (studentName) {
+      if (studentName && classroomId) {
         attemptSaved = true;
 
         void createModuleAttempt({
           module_id: moduleId,
+          classroom_id: classroomId,
+          classroom_name: classroomName || '',
           student_name: studentName,
           score: game.score,
           max_score: finalMaxScore,
@@ -179,13 +190,19 @@
     const studentName = typeof window !== 'undefined'
       ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
       : '';
+    const classroomId = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim()
+      : '';
+    const classroomName = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(CLASSROOM_NAME_KEY)?.trim()
+      : '';
 
     if (!challenge) {
       return { submitted: false, message: 'Desafio indisponivel no momento.' };
     }
 
-    if (!studentName) {
-      return { submitted: false, message: 'Seu nome nao foi encontrado. Volte ao menu e informe novamente.' };
+    if (!studentName || !classroomId) {
+      return { submitted: false, message: 'Seus dados de aluno nao foram encontrados. Volte ao menu e informe novamente.' };
     }
 
     const responseText = answer?.trim?.() || '';
@@ -201,6 +218,8 @@
       await createOpenTextResponse({
         module_id: moduleId,
         challenge_id: challenge.challengeRecordId,
+        classroom_id: classroomId,
+        classroom_name: classroomName || '',
         student_name: studentName,
         response_text: responseText,
         status: 'pending',

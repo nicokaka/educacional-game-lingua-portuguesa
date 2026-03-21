@@ -4,6 +4,7 @@
  * Rotas:
  *   #/           → Menu (seleção de módulos)
  *   #/play/:id   → Tela do jogo
+ *   #/reviews    → Tela do aluno com correções
  *   #/editor     → Editor do professor
  * 
  * Zero dependências externas.
@@ -18,6 +19,7 @@ let current = $state({ route: '/', params: {} });
  */
 const routes = [
   { pattern: '/play/:id', name: 'play' },
+  { pattern: '/reviews', name: 'reviews' },
   { pattern: '/editor', name: 'editor' },
   { pattern: '/', name: 'menu' },
 ];

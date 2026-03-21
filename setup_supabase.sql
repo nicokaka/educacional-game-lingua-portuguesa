@@ -6,10 +6,20 @@
 -- Limpa tabelas anteriores (se existirem)
 DROP TRIGGER IF EXISTS set_updated_at ON modules;
 DROP FUNCTION IF EXISTS update_updated_at();
+DROP TABLE IF EXISTS classrooms CASCADE;
 DROP TABLE IF EXISTS open_text_responses CASCADE;
 DROP TABLE IF EXISTS module_attempts CASCADE;
 DROP TABLE IF EXISTS challenges CASCADE;
 DROP TABLE IF EXISTS modules CASCADE;
+
+-- Tabela: classrooms (turmas cadastradas pelo professor)
+CREATE TABLE classrooms (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  sort_order SMALLINT NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- Tabela: modules (módulos do professor)
 CREATE TABLE modules (
@@ -37,6 +47,8 @@ CREATE TABLE open_text_responses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
   challenge_id UUID NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
+  classroom_id UUID REFERENCES classrooms(id) ON DELETE SET NULL,
+  classroom_name TEXT,
   student_name TEXT NOT NULL,
   response_text TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
@@ -49,6 +61,8 @@ CREATE TABLE open_text_responses (
 CREATE TABLE module_attempts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  classroom_id UUID REFERENCES classrooms(id) ON DELETE SET NULL,
+  classroom_name TEXT,
   student_name TEXT NOT NULL,
   score INTEGER NOT NULL,
   max_score INTEGER NOT NULL,
@@ -57,6 +71,7 @@ CREATE TABLE module_attempts (
 );
 
 -- Index para busca rápida por módulo
+CREATE INDEX idx_classrooms_active_sort_order ON classrooms(active, sort_order, created_at);
 CREATE INDEX idx_challenges_module_id ON challenges(module_id);
 CREATE INDEX idx_module_attempts_module_id ON module_attempts(module_id);
 
@@ -81,11 +96,15 @@ ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE challenges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE module_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE open_text_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE classrooms ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Classrooms are viewable by everyone" ON classrooms FOR SELECT USING (true);
 CREATE POLICY "Modules are viewable by everyone" ON modules FOR SELECT USING (true);
 CREATE POLICY "Challenges are viewable by everyone" ON challenges FOR SELECT USING (true);
 CREATE POLICY "Module attempts are viewable by everyone" ON module_attempts FOR SELECT USING (true);
 CREATE POLICY "Open text responses are viewable by everyone" ON open_text_responses FOR SELECT USING (true);
+CREATE POLICY "Anyone can insert classrooms" ON classrooms FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update classrooms" ON classrooms FOR UPDATE USING (true);
 CREATE POLICY "Anyone can insert modules" ON modules FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update modules" ON modules FOR UPDATE USING (true);
 CREATE POLICY "Anyone can delete modules" ON modules FOR DELETE USING (true);
