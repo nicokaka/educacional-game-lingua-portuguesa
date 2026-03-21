@@ -1,5 +1,40 @@
 import { supabase } from './client.js';
 
+export const MODULE_LEADERBOARD_WINDOW_HOURS = 12;
+
+function getLeaderboardWindowStart() {
+  return new Date(Date.now() - (MODULE_LEADERBOARD_WINDOW_HOURS * 60 * 60 * 1000)).toISOString();
+}
+
+async function fetchLeaderboardAttemptRows(moduleId, currentClassroomId = '') {
+  const trimmedCurrentClassroomId = currentClassroomId?.trim?.() || '';
+
+  let query = supabase
+    .from('module_attempts')
+    .select('id, student_name, classroom_id, classroom_name, score, max_score, completed, created_at')
+    .eq('module_id', moduleId)
+    .gte('created_at', getLeaderboardWindowStart());
+
+  if (trimmedCurrentClassroomId) {
+    query = query.or(`classroom_id.eq.${trimmedCurrentClassroomId},classroom_id.is.null`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao carregar placar: ${error.message}`);
+  }
+
+  return trimmedCurrentClassroomId
+    ? (() => {
+        const classroomRows = (data || []).filter((attempt) => attempt.classroom_id === trimmedCurrentClassroomId);
+        return classroomRows.length > 0
+          ? classroomRows
+          : (data || []).filter((attempt) => !attempt.classroom_id);
+      })()
+    : (data || []);
+}
+
 /**
  * Salva uma tentativa finalizada de modulo.
  * @param {{
@@ -29,16 +64,10 @@ export async function createModuleAttempt(attempt) {
  * @param {string} currentClassroomId
  */
 export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', currentClassroomId = '') {
-  const { data, error } = await supabase
-    .from('module_attempts')
-    .select('student_name, classroom_id, classroom_name, score, max_score, completed, created_at')
-    .eq('module_id', moduleId);
+  const trimmedCurrentClassroomId = currentClassroomId?.trim?.() || '';
+  const rows = await fetchLeaderboardAttemptRows(moduleId, trimmedCurrentClassroomId);
 
-  if (error) {
-    throw new Error(`Erro ao carregar placar: ${error.message}`);
-  }
-
-  const rankedAttempts = (data || [])
+  const rankedAttempts = rows
     .map((attempt) => ({
       ...attempt,
       percentage: attempt.max_score > 0 ? attempt.score / attempt.max_score : 0,
@@ -70,7 +99,6 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
   }
 
   const trimmedCurrentStudent = currentStudentName?.trim?.() || '';
-  const trimmedCurrentClassroomId = currentClassroomId?.trim?.() || '';
   const currentStudentIndex = trimmedCurrentStudent
     ? bestByStudent.findIndex((entry) => {
         if (entry.student_name !== trimmedCurrentStudent) return false;
@@ -88,4 +116,22 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
           ...bestByStudent[currentStudentIndex],
         },
   };
+}
+
+export async function clearModuleLeaderboard(moduleId, currentClassroomId = '') {
+  const rows = await fetchLeaderboardAttemptRows(moduleId, currentClassroomId);
+  const ids = rows.map((attempt) => attempt.id).filter(Boolean);
+
+  if (ids.length === 0) return { deletedCount: 0 };
+
+  const { error } = await supabase
+    .from('module_attempts')
+    .delete()
+    .in('id', ids);
+
+  if (error) {
+    throw new Error(`Erro ao zerar placar: ${error.message}`);
+  }
+
+  return { deletedCount: ids.length };
 }

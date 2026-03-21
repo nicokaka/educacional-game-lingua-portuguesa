@@ -86,3 +86,14 @@ export async function setClassroomActive(classroomId, active) {
     throw new Error(`Erro ao atualizar turma: ${error.message}`);
   }
 }
+
+export async function deleteClassroom(classroomId) {
+  const { error } = await supabase
+    .from('classrooms')
+    .delete()
+    .eq('id', classroomId);
+
+  if (error) {
+    throw new Error(`Erro ao excluir turma: ${error.message}`);
+  }
+}

@@ -29,7 +29,7 @@ export async function createOpenTextResponse(response) {
 export async function fetchModuleOpenTextResponses(moduleId) {
   const { data: responseRows, error: responseError } = await supabase
     .from('open_text_responses')
-    .select('id, challenge_id, student_name, response_text, status, teacher_feedback, reviewed_at, created_at')
+    .select('id, challenge_id, classroom_id, classroom_name, student_name, response_text, status, teacher_feedback, reviewed_at, created_at')
     .eq('module_id', moduleId)
     .order('created_at', { ascending: false });
 
@@ -47,14 +47,17 @@ export async function fetchModuleOpenTextResponses(moduleId) {
       .in('id', challengeIds);
 
     if (challengeError) {
-      throw new Error(`Erro ao carregar perguntas das respostas abertas: ${challengeError.message}`);
+      console.error('Erro ao carregar perguntas das respostas abertas:', challengeError);
+    } else {
+      promptById = new Map((challengeRows || []).map((challenge) => [challenge.id, challenge.prompt]));
     }
-
-    promptById = new Map((challengeRows || []).map((challenge) => [challenge.id, challenge.prompt]));
   }
 
   return (responseRows || []).map((row) => ({
     ...row,
+    status: row.status || 'pending',
+    teacher_feedback: row.teacher_feedback || '',
+    classroom_name: row.classroom_name || (row.classroom_id ? 'Turma removida ou indisponivel' : 'Turma antiga ou nao informada'),
     prompt: promptById.get(row.challenge_id) || 'Pergunta removida ou indisponivel',
   }));
 }
@@ -81,6 +84,21 @@ export async function updateOpenTextResponseReview(responseId, review) {
   }
 
   return { reviewed_at: reviewedAt };
+}
+
+/**
+ * Exclui uma resposta aberta.
+ * @param {string} responseId
+ */
+export async function deleteOpenTextResponse(responseId) {
+  const { error } = await supabase
+    .from('open_text_responses')
+    .delete()
+    .eq('id', responseId);
+
+  if (error) {
+    throw new Error(`Erro ao excluir resposta aberta: ${error.message}`);
+  }
 }
 
 /**

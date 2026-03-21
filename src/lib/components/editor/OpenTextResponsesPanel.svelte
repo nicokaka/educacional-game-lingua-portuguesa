@@ -1,5 +1,9 @@
 <script>
-  import { fetchModuleOpenTextResponses, updateOpenTextResponseReview } from '../../supabase/writtenResponses.js';
+  import {
+    deleteOpenTextResponse,
+    fetchModuleOpenTextResponses,
+    updateOpenTextResponseReview,
+  } from '../../supabase/writtenResponses.js';
 
   let { moduleId, moduleTitle = 'Respostas', onBack } = $props();
 
@@ -10,6 +14,7 @@
   let draftStatus = $state('correta');
   let draftFeedback = $state('');
   let saving = $state(false);
+  let deleting = $state(false);
   let saveError = $state('');
   let saveSuccess = $state('');
 
@@ -38,6 +43,10 @@
     return normalized.length > 90 ? `${normalized.slice(0, 87)}...` : normalized;
   }
 
+  function getClassroomLabel(response) {
+    return response?.classroom_name || 'Turma antiga ou nao informada';
+  }
+
   function formatDate(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -57,6 +66,32 @@
     saveSuccess = '';
   }
 
+  function applyResponses(nextResponses, preferredId = null) {
+    responses = nextResponses;
+
+    if (nextResponses.length === 0) {
+      selectedResponseId = null;
+      draftStatus = 'correta';
+      draftFeedback = '';
+      saveError = '';
+      saveSuccess = '';
+      return;
+    }
+
+    const nextId = preferredId && nextResponses.some((item) => item.id === preferredId)
+      ? preferredId
+      : nextResponses[0].id;
+
+    selectResponse(nextId, nextResponses);
+  }
+
+  function getNextSelectionAfterDelete(currentResponses, deletedId) {
+    const deletedIndex = currentResponses.findIndex((item) => item.id === deletedId);
+    const remaining = currentResponses.filter((item) => item.id !== deletedId);
+
+    return remaining[deletedIndex]?.id || remaining[deletedIndex - 1]?.id || remaining[0]?.id || null;
+  }
+
   async function loadResponses() {
     loading = true;
     error = '';
@@ -65,20 +100,7 @@
 
     try {
       const data = await fetchModuleOpenTextResponses(moduleId);
-      responses = data;
-
-      if (data.length === 0) {
-        selectedResponseId = null;
-        draftStatus = 'correta';
-        draftFeedback = '';
-        return;
-      }
-
-      const nextId = data.some((item) => item.id === selectedResponseId)
-        ? selectedResponseId
-        : data[0].id;
-
-      selectResponse(nextId, data);
+      applyResponses(data, selectedResponseId);
     } catch (err) {
       console.error('Erro ao carregar respostas abertas:', err);
       error = err.message || 'Nao foi possivel carregar as respostas.';
@@ -90,7 +112,7 @@
   }
 
   async function saveReview() {
-    if (!selectedResponse) return;
+    if (!selectedResponse || deleting) return;
 
     saving = true;
     saveError = '';
@@ -121,6 +143,30 @@
       saving = false;
     }
   }
+
+  async function removeResponse() {
+    if (!selectedResponse || saving || deleting) return;
+    if (!confirm(`Excluir a resposta de "${selectedResponse.student_name}"?`)) return;
+
+    deleting = true;
+    saveError = '';
+    saveSuccess = '';
+
+    try {
+      await deleteOpenTextResponse(selectedResponse.id);
+
+      const nextSelectedId = getNextSelectionAfterDelete(responses, selectedResponse.id);
+      applyResponses(
+        responses.filter((response) => response.id !== selectedResponse.id),
+        nextSelectedId
+      );
+    } catch (err) {
+      console.error('Erro ao excluir resposta:', err);
+      saveError = err.message || 'Nao foi possivel excluir a resposta.';
+    } finally {
+      deleting = false;
+    }
+  }
 </script>
 
 <div class="responses-panel">
@@ -138,7 +184,10 @@
       <p>Carregando respostas...</p>
     </div>
   {:else if error}
-    <div class="error-banner">⚠️ {error}</div>
+    <div class="error-banner">
+      <p>⚠️ {error}</p>
+      <button type="button" class="retry-btn" onclick={loadResponses}>Tentar novamente</button>
+    </div>
   {:else if responses.length === 0}
     <div class="empty-state">
       <h3>Nenhuma resposta enviada ainda.</h3>
@@ -158,6 +207,7 @@
               <span class="student-name">{response.student_name}</span>
               <span class={`status-pill ${response.status}`}>{getStatusLabel(response.status)}</span>
             </div>
+            <p class="classroom-name">{getClassroomLabel(response)}</p>
             <p class="prompt-summary">{summarizePrompt(response.prompt)}</p>
             <p class="response-meta">{formatDate(response.created_at)}</p>
           </button>
@@ -169,6 +219,11 @@
           <div class="detail-block">
             <p class="detail-label">Aluno</p>
             <p class="detail-value">{selectedResponse.student_name}</p>
+          </div>
+
+          <div class="detail-block">
+            <p class="detail-label">Turma</p>
+            <p class="detail-value">{getClassroomLabel(selectedResponse)}</p>
           </div>
 
           <div class="detail-block">
@@ -208,9 +263,14 @@
               <p class="form-success">{saveSuccess}</p>
             {/if}
 
-            <button type="button" class="save-btn" onclick={saveReview} disabled={saving}>
+            <div class="form-actions">
+              <button type="button" class="save-btn" onclick={saveReview} disabled={saving || deleting}>
               {saving ? 'Salvando...' : 'Salvar correcao'}
-            </button>
+              </button>
+              <button type="button" class="delete-btn" onclick={removeResponse} disabled={saving || deleting}>
+                {deleting ? 'Excluindo...' : 'Excluir resposta'}
+              </button>
+            </div>
           </div>
         {/if}
       </section>
@@ -304,6 +364,12 @@
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--color-text);
+  }
+
+  .classroom-name {
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
   }
 
   .status-pill {
@@ -435,12 +501,46 @@
     box-shadow: 0 4px 18px rgba(139, 92, 246, 0.28);
   }
 
+  .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .delete-btn,
+  .retry-btn {
+    padding: 0.7rem 1.15rem;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  }
+
+  .delete-btn {
+    border: 1px solid rgba(248, 113, 113, 0.34);
+    background: rgba(127, 29, 29, 0.18);
+    color: #fecaca;
+  }
+
+  .retry-btn {
+    border: 1px solid rgba(139, 92, 246, 0.34);
+    background: rgba(139, 92, 246, 0.12);
+    color: var(--color-text);
+  }
+
   .save-btn:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 8px 26px rgba(139, 92, 246, 0.34);
   }
 
-  .save-btn:disabled {
+  .delete-btn:hover:not(:disabled),
+  .retry-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .save-btn:disabled,
+  .delete-btn:disabled,
+  .retry-btn:disabled {
     opacity: 0.72;
     cursor: wait;
     transform: none;
@@ -470,6 +570,13 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: 1.25rem;
+  }
+
+  .error-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    align-items: flex-start;
   }
 
   .empty-state {
@@ -526,9 +633,11 @@
       padding: 0.9rem;
     }
 
-    .save-btn {
+    .form-actions,
+    .save-btn,
+    .delete-btn,
+    .retry-btn {
       width: 100%;
-      justify-content: center;
     }
   }
 

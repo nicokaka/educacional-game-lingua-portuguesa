@@ -1,6 +1,7 @@
 <script>
   import {
     createClassroom,
+    deleteClassroom,
     fetchAllClassrooms,
     setClassroomActive,
     updateClassroom,
@@ -95,6 +96,25 @@
       rowSavingId = '';
     }
   }
+
+  async function handleDelete(classroom) {
+    if (!confirm(`Excluir a turma "${classroom.name}"?`)) return;
+
+    rowSavingId = classroom.id;
+    rowError = '';
+
+    try {
+      await deleteClassroom(classroom.id);
+      if (editingId === classroom.id) {
+        cancelEditing();
+      }
+      await loadClassrooms();
+    } catch (err) {
+      rowError = err?.message || 'Nao foi possivel excluir a turma.';
+    } finally {
+      rowSavingId = '';
+    }
+  }
 </script>
 
 <div class="classrooms-panel">
@@ -176,6 +196,14 @@
                     : classroom.active
                       ? 'Desativar'
                       : 'Reativar'}
+                </button>
+                <button
+                  type="button"
+                  class="mini-btn delete"
+                  onclick={() => handleDelete(classroom)}
+                  disabled={rowSavingId === classroom.id}
+                >
+                  {rowSavingId === classroom.id ? 'Salvando...' : 'Excluir'}
                 </button>
               </div>
             </div>
@@ -357,6 +385,11 @@
     padding: 0.45rem 0.72rem;
     font-size: 0.82rem;
     color: var(--color-muted);
+  }
+
+  .mini-btn.delete:hover:not(:disabled) {
+    border-color: rgba(248, 113, 113, 0.45);
+    color: #fecaca;
   }
 
   .mini-btn:disabled,

@@ -1,12 +1,13 @@
 <script>
   import { navigate } from '../../router.svelte.js';
   import { fetchModules } from '../../supabase/modules.js';
-  import { fetchModuleLeaderboard } from '../../supabase/attempts.js';
+  import { clearModuleLeaderboard, fetchModuleLeaderboard, MODULE_LEADERBOARD_WINDOW_HOURS } from '../../supabase/attempts.js';
   import { fetchActiveClassrooms } from '../../supabase/classrooms.js';
 
   const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
   const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
   const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
+  const PROFESSOR_PASSWORD = import.meta.env.VITE_PROFESSOR_PASSWORD || 'prof2026';
 
   let modules = $state([]);
   let classrooms = $state([]);
@@ -26,8 +27,15 @@
   let leaderboardLoading = $state(false);
   let leaderboardError = $state('');
   let leaderboardModule = $state(null);
+  let pendingLeaderboardModule = $state(null);
+  let leaderboardClassroomName = $state('');
   let leaderboardTop3 = $state([]);
   let currentStudentLeaderboard = $state(null);
+  let showResetLeaderboardPrompt = $state(false);
+  let resetLeaderboardPassword = $state('');
+  let resetLeaderboardError = $state('');
+  let resetLeaderboardSuccess = $state('');
+  let resettingLeaderboard = $state(false);
   const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Nicolas Oliveira';
   const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Sergio Claudino';
 
@@ -82,6 +90,11 @@
     return window.sessionStorage.getItem(CLASSROOM_ID_KEY) || '';
   }
 
+  function getSavedClassroomName() {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem(CLASSROOM_NAME_KEY) || '';
+  }
+
   function openStudentModal(moduleId = '', mode = 'play') {
     selectedModuleId = moduleId;
     studentModalMode = mode;
@@ -100,6 +113,7 @@
     studentModalMode = 'play';
     selectedClassroomId = '';
     studentNameError = '';
+    pendingLeaderboardModule = null;
   }
 
   function playModule(id) {
@@ -149,9 +163,15 @@
 
     const moduleId = selectedModuleId;
     const modalMode = studentModalMode;
+    const leaderboardToOpen = pendingLeaderboardModule;
     closeStudentModal();
     if (modalMode === 'reviews') {
       navigate('/reviews');
+      return;
+    }
+
+    if (modalMode === 'leaderboard' && leaderboardToOpen) {
+      void loadLeaderboard(leaderboardToOpen);
       return;
     }
 
@@ -162,13 +182,18 @@
     navigate('/editor');
   }
 
-  async function openLeaderboard(moduleData) {
+  async function loadLeaderboard(moduleData) {
     showLeaderboardModal = true;
     leaderboardLoading = true;
     leaderboardError = '';
     leaderboardModule = moduleData;
+    leaderboardClassroomName = getSavedClassroomName().trim();
     leaderboardTop3 = [];
     currentStudentLeaderboard = null;
+    showResetLeaderboardPrompt = false;
+    resetLeaderboardPassword = '';
+    resetLeaderboardError = '';
+    resetLeaderboardSuccess = '';
 
     try {
       const studentName = getSavedStudentName().trim();
@@ -183,13 +208,81 @@
     }
   }
 
+  async function openLeaderboard(moduleData) {
+    const studentName = getSavedStudentName().trim();
+    const classroomId = getSavedClassroomId().trim();
+
+    if (!studentName || !classroomId) {
+      pendingLeaderboardModule = moduleData;
+      openStudentModal('', 'leaderboard');
+      return;
+    }
+
+    await loadLeaderboard(moduleData);
+  }
+
   function closeLeaderboard() {
     showLeaderboardModal = false;
     leaderboardLoading = false;
     leaderboardError = '';
     leaderboardModule = null;
+    leaderboardClassroomName = '';
     leaderboardTop3 = [];
     currentStudentLeaderboard = null;
+    showResetLeaderboardPrompt = false;
+    resetLeaderboardPassword = '';
+    resetLeaderboardError = '';
+    resetLeaderboardSuccess = '';
+    resettingLeaderboard = false;
+  }
+
+  function retryLeaderboard() {
+    if (!leaderboardModule) return;
+    openLeaderboard(leaderboardModule);
+  }
+
+  function openResetLeaderboardPrompt() {
+    showResetLeaderboardPrompt = true;
+    resetLeaderboardPassword = '';
+    resetLeaderboardError = '';
+    resetLeaderboardSuccess = '';
+  }
+
+  function cancelResetLeaderboardPrompt() {
+    showResetLeaderboardPrompt = false;
+    resetLeaderboardPassword = '';
+    resetLeaderboardError = '';
+  }
+
+  async function confirmResetLeaderboard() {
+    if (!leaderboardModule || resettingLeaderboard) return;
+
+    if (resetLeaderboardPassword !== PROFESSOR_PASSWORD) {
+      resetLeaderboardError = 'Senha do professor incorreta.';
+      return;
+    }
+
+    resettingLeaderboard = true;
+    resetLeaderboardError = '';
+    resetLeaderboardSuccess = '';
+
+    try {
+      const classroomId = getSavedClassroomId().trim();
+      const { deletedCount } = await clearModuleLeaderboard(leaderboardModule.id, classroomId);
+      resetLeaderboardSuccess = deletedCount > 0
+        ? 'Placar zerado com sucesso.'
+        : 'Nao havia tentativas recentes para remover.';
+      showResetLeaderboardPrompt = false;
+      resetLeaderboardPassword = '';
+      await openLeaderboard(leaderboardModule);
+      resetLeaderboardSuccess = deletedCount > 0
+        ? 'Placar zerado com sucesso.'
+        : 'Nao havia tentativas recentes para remover.';
+    } catch (error) {
+      resetLeaderboardError = error?.message || 'Nao foi possivel zerar o placar.';
+    } finally {
+      resettingLeaderboard = false;
+    }
   }
 
   function openHelp(section = 'instructions') {
@@ -371,14 +464,22 @@
     >
       <form onsubmit={confirmStudentName}>
         <div class="help-header">
-        <h2 class="help-title">{studentModalMode === 'reviews' ? 'Ver minhas correções' : 'Antes de jogar'}</h2>
+        <h2 class="help-title">
+          {studentModalMode === 'reviews'
+            ? 'Ver minhas correções'
+            : studentModalMode === 'leaderboard'
+              ? 'Ver placar da turma'
+              : 'Antes de jogar'}
+        </h2>
           <button type="button" class="help-close" onclick={closeStudentModal} aria-label="Fechar">x</button>
         </div>
 
         <p class="student-copy">
           {studentModalMode === 'reviews'
             ? 'Digite seu nome para consultar suas respostas abertas corrigidas.'
-            : 'Digite seu nome para entrar no modulo.'}
+            : studentModalMode === 'leaderboard'
+              ? 'Escolha sua turma e digite seu nome para ver o placar certo da aula.'
+              : 'Digite seu nome para entrar no modulo.'}
         </p>
 
         <div class="student-field">
@@ -422,7 +523,11 @@
             Cancelar
           </button>
           <button type="submit" class="student-btn primary">
-            {studentModalMode === 'reviews' ? 'Ver correções' : 'Comecar'}
+            {studentModalMode === 'reviews'
+              ? 'Ver correções'
+              : studentModalMode === 'leaderboard'
+                ? 'Ver placar'
+                : 'Comecar'}
           </button>
         </div>
       </form>
@@ -441,12 +546,25 @@
       onmousedown={stopMouseDown}
     >
       <div class="help-header">
-        <h2 class="help-title">🏆 Placar</h2>
+        <h2 class="help-title">{leaderboardClassroomName ? '🏆 Placar da turma' : '🏆 Placar'}</h2>
         <button type="button" class="help-close" onclick={closeLeaderboard} aria-label="Fechar">x</button>
       </div>
 
       {#if leaderboardModule}
-        <p class="leaderboard-module-title">{leaderboardModule.title}</p>
+        <div class="leaderboard-intro">
+          <p class="leaderboard-module-title">{leaderboardModule.title}</p>
+          <p class="empty-hint">
+            {leaderboardClassroomName
+              ? 'Classificacao da sua turma nesta aula.'
+              : 'Classificacao recente deste modulo.'}
+          </p>
+          <div class="leaderboard-context">
+            <span class="leaderboard-chip">Ultimas {MODULE_LEADERBOARD_WINDOW_HOURS}h</span>
+            {#if leaderboardClassroomName}
+              <span class="leaderboard-chip classroom">{leaderboardClassroomName}</span>
+            {/if}
+          </div>
+        </div>
       {/if}
 
       {#if leaderboardLoading}
@@ -457,28 +575,35 @@
       {:else if leaderboardError}
         <div class="error-state leaderboard-state">
           <p class="error-text">⚠️ {leaderboardError}</p>
+          <p class="empty-hint">Nao foi possivel atualizar o placar desta turma agora.</p>
+          <button type="button" class="retry-btn" onclick={retryLeaderboard}>Tentar novamente</button>
         </div>
       {:else if leaderboardTop3.length === 0}
         <div class="empty-state leaderboard-state">
-          <p class="empty-text">Ainda nao ha tentativas neste modulo.</p>
-          <p class="empty-hint">Jogue uma vez para inaugurar o placar.</p>
+          <p class="empty-text">Ainda nao ha pontuacoes para este placar.</p>
+          <p class="empty-hint">
+            {leaderboardClassroomName
+              ? `A turma ${leaderboardClassroomName} ainda nao registrou tentativas nas ultimas 12 horas.`
+              : `Ainda nao ha tentativas registradas nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
+          </p>
         </div>
       {:else}
         <div class="leaderboard-list">
           {#each leaderboardTop3 as entry, index}
-            <div class="leaderboard-entry">
-              <div class="leaderboard-rank">#{index + 1}</div>
+            <div class={`leaderboard-entry podium-${index + 1}`}>
+              <div class="leaderboard-rank">
+                <span class="leaderboard-rank-badge">{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                <span>#{index + 1}</span>
+              </div>
               <div class="leaderboard-main">
                 <div class="leaderboard-name">{entry.student_name}</div>
+                {#if entry.classroom_name}
+                  <div class="leaderboard-classroom">{entry.classroom_name}</div>
+                {/if}
                 <div class="leaderboard-meta">
-                  {#if entry.classroom_name}
-                    <span>{entry.classroom_name}</span>
-                  {/if}
-                  <span>{Math.round(entry.percentage * 100)}%</span>
-                  <span>{entry.score}/{entry.max_score}</span>
-                  {#if entry.completed}
-                    <span>Concluiu</span>
-                  {/if}
+                  <span class="leaderboard-stat strong">{Math.round(entry.percentage * 100)}%</span>
+                  <span class="leaderboard-stat">{entry.score}/{entry.max_score} pontos</span>
+                  <span class="leaderboard-stat">{entry.completed ? 'Concluiu' : 'Em andamento'}</span>
                 </div>
               </div>
             </div>
@@ -488,27 +613,83 @@
 
       <div class="leaderboard-divider"></div>
 
-      <h3 class="help-subtitle">Sua posicao</h3>
+      <h3 class="help-subtitle">Sua posição</h3>
       {#if currentStudentLeaderboard}
         <div class="leaderboard-entry current-student">
-          <div class="leaderboard-rank">#{currentStudentLeaderboard.rank}</div>
+          <div class="leaderboard-rank">
+            <span class="leaderboard-rank-badge">📍</span>
+            <span>#{currentStudentLeaderboard.rank}</span>
+          </div>
           <div class="leaderboard-main">
             <div class="leaderboard-name">{currentStudentLeaderboard.student_name}</div>
+            {#if currentStudentLeaderboard.classroom_name}
+              <div class="leaderboard-classroom">{currentStudentLeaderboard.classroom_name}</div>
+            {/if}
             <div class="leaderboard-meta">
-              {#if currentStudentLeaderboard.classroom_name}
-                <span>{currentStudentLeaderboard.classroom_name}</span>
-              {/if}
-              <span>{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
-              <span>{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score}</span>
-              {#if currentStudentLeaderboard.completed}
-                <span>Concluiu</span>
-              {/if}
+              <span class="leaderboard-stat strong">{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
+              <span class="leaderboard-stat">{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score} pontos</span>
+              <span class="leaderboard-stat">{currentStudentLeaderboard.completed ? 'Concluiu' : 'Em andamento'}</span>
             </div>
           </div>
         </div>
       {:else}
-        <p class="empty-hint">Voce ainda nao tem tentativa registrada neste modulo.</p>
+        <p class="empty-hint">
+          {leaderboardClassroomName
+            ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} nas ultimas 12 horas.`
+            : `Voce ainda nao tem tentativa registrada neste modulo nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
+        </p>
       {/if}
+
+      <div class="leaderboard-divider"></div>
+
+      <div class="leaderboard-reset">
+        <button
+          type="button"
+          class="student-btn secondary leaderboard-reset-trigger"
+          onclick={openResetLeaderboardPrompt}
+          disabled={leaderboardLoading || resettingLeaderboard}
+        >
+          Zerar placar
+        </button>
+
+        {#if showResetLeaderboardPrompt}
+          <div class="leaderboard-reset-card">
+            <label class="field-label" for="leaderboard-reset-password">Senha do professor</label>
+            <input
+              id="leaderboard-reset-password"
+              type="password"
+              class="student-input"
+              bind:value={resetLeaderboardPassword}
+              placeholder="Digite a senha do professor"
+            />
+
+            {#if resetLeaderboardError}
+              <p class="student-error">{resetLeaderboardError}</p>
+            {/if}
+
+            <div class="student-actions leaderboard-reset-actions">
+              <button
+                type="button"
+                class="student-btn secondary"
+                onclick={cancelResetLeaderboardPrompt}
+                disabled={resettingLeaderboard}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                class="student-btn primary"
+                onclick={confirmResetLeaderboard}
+                disabled={resettingLeaderboard}
+              >
+                {resettingLeaderboard ? 'Zerando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        {:else if resetLeaderboardSuccess}
+          <p class="leaderboard-reset-success">{resetLeaderboardSuccess}</p>
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
@@ -892,10 +1073,39 @@
   }
 
   .leaderboard-module-title {
-    font-size: 0.96rem;
+    font-size: 1.02rem;
+    font-weight: 800;
     color: var(--color-text);
-    margin-bottom: 0.95rem;
     line-height: 1.45;
+  }
+
+  .leaderboard-intro {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-bottom: 0.95rem;
+  }
+
+  .leaderboard-context {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .leaderboard-chip {
+    border-radius: 999px;
+    border: 1px solid rgba(250, 204, 21, 0.28);
+    background: rgba(250, 204, 21, 0.1);
+    color: #fde68a;
+    padding: 0.28rem 0.62rem;
+    font-size: 0.76rem;
+    font-weight: 700;
+  }
+
+  .leaderboard-chip.classroom {
+    border-color: rgba(56, 189, 248, 0.28);
+    background: rgba(56, 189, 248, 0.1);
+    color: #dbeafe;
   }
 
   .leaderboard-state {
@@ -918,6 +1128,21 @@
     padding: 0.8rem 0.9rem;
   }
 
+  .leaderboard-entry.podium-1 {
+    border-color: rgba(250, 204, 21, 0.38);
+    background: linear-gradient(180deg, rgba(250, 204, 21, 0.12), rgba(15, 23, 42, 0.42));
+  }
+
+  .leaderboard-entry.podium-2 {
+    border-color: rgba(226, 232, 240, 0.3);
+    background: linear-gradient(180deg, rgba(226, 232, 240, 0.08), rgba(15, 23, 42, 0.42));
+  }
+
+  .leaderboard-entry.podium-3 {
+    border-color: rgba(251, 146, 60, 0.3);
+    background: linear-gradient(180deg, rgba(251, 146, 60, 0.08), rgba(15, 23, 42, 0.42));
+  }
+
   .leaderboard-entry.current-student {
     border-color: rgba(139, 92, 246, 0.42);
     background: rgba(139, 92, 246, 0.1);
@@ -925,9 +1150,18 @@
 
   .leaderboard-rank {
     min-width: 52px;
-    font-size: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    font-size: 0.98rem;
     font-weight: 800;
     color: #facc15;
+  }
+
+  .leaderboard-rank-badge {
+    font-size: 1.05rem;
+    line-height: 1;
   }
 
   .leaderboard-main {
@@ -938,10 +1172,16 @@
   }
 
   .leaderboard-name {
-    font-size: 0.95rem;
+    font-size: 0.98rem;
     font-weight: 700;
     color: var(--color-text);
     word-break: break-word;
+  }
+
+  .leaderboard-classroom {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+    line-height: 1.35;
   }
 
   .leaderboard-meta {
@@ -952,10 +1192,52 @@
     color: var(--color-muted);
   }
 
+  .leaderboard-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .leaderboard-stat.strong {
+    color: var(--color-text);
+    font-weight: 700;
+  }
+
   .leaderboard-divider {
     height: 1px;
     background: var(--color-border);
     margin: 1rem 0 0.8rem;
+  }
+
+  .leaderboard-reset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.4rem;
+  }
+
+  .leaderboard-reset-trigger {
+    align-self: flex-start;
+  }
+
+  .leaderboard-reset-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.85rem;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.32);
+  }
+
+  .leaderboard-reset-actions {
+    margin-top: 0.2rem;
+  }
+
+  .leaderboard-reset-success {
+    font-size: 0.84rem;
+    color: #bbf7d0;
+    line-height: 1.45;
   }
 
   .student-copy {
