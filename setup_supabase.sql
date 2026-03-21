@@ -6,6 +6,7 @@
 -- Limpa tabelas anteriores (se existirem)
 DROP TRIGGER IF EXISTS set_updated_at ON modules;
 DROP FUNCTION IF EXISTS update_updated_at();
+DROP TABLE IF EXISTS module_attempts CASCADE;
 DROP TABLE IF EXISTS challenges CASCADE;
 DROP TABLE IF EXISTS modules CASCADE;
 
@@ -30,8 +31,20 @@ CREATE TABLE challenges (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Tabela: module_attempts (tentativas dos alunos por modulo)
+CREATE TABLE module_attempts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  module_id UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+  student_name TEXT NOT NULL,
+  score INTEGER NOT NULL,
+  max_score INTEGER NOT NULL,
+  completed BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Index para busca rápida por módulo
 CREATE INDEX idx_challenges_module_id ON challenges(module_id);
+CREATE INDEX idx_module_attempts_module_id ON module_attempts(module_id);
 
 -- Trigger para auto-update de updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -52,15 +65,18 @@ CREATE TRIGGER set_updated_at
 -- ==========================================
 ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE module_attempts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Modules are viewable by everyone" ON modules FOR SELECT USING (true);
 CREATE POLICY "Challenges are viewable by everyone" ON challenges FOR SELECT USING (true);
+CREATE POLICY "Module attempts are viewable by everyone" ON module_attempts FOR SELECT USING (true);
 CREATE POLICY "Anyone can insert modules" ON modules FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update modules" ON modules FOR UPDATE USING (true);
 CREATE POLICY "Anyone can delete modules" ON modules FOR DELETE USING (true);
 CREATE POLICY "Anyone can insert challenges" ON challenges FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update challenges" ON challenges FOR UPDATE USING (true);
 CREATE POLICY "Anyone can delete challenges" ON challenges FOR DELETE USING (true);
+CREATE POLICY "Anyone can insert module attempts" ON module_attempts FOR INSERT WITH CHECK (true);
 
 -- ==========================================
 -- Dados de exemplo

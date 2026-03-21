@@ -1,7 +1,11 @@
 <script>
   import TypeSelector from './TypeSelector.svelte';
+  import { supabase } from '../../supabase/client.js';
 
   let { challenge = $bindable(), onremove, onduplicate, errors = [] } = $props();
+  let imageUploadError = $state('');
+  let uploadingImage = $state(false);
+  let imageInput = $state();
 
   function addOption() {
     if (!challenge.options) challenge.options = [];
@@ -76,6 +80,9 @@
       prompt: challenge.prompt,
       difficulty: challenge.difficulty,
       monster: challenge.monster || { name: 'Monstro', sprite: '' },
+      imageUrl: challenge.imageUrl || '',
+      imageAlt: challenge.imageAlt || '',
+      imageCaption: challenge.imageCaption || '',
     };
 
     if (newType === 'drag_drop') {
@@ -116,6 +123,67 @@
     }
 
     challenge.type = newType;
+  }
+
+  function triggerImagePicker() {
+    imageInput?.click();
+  }
+
+  function createImageFilePath(file) {
+    const safeName = (file.name || 'imagem')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._-]/g, '-')
+      .replace(/-+/g, '-')
+      .toLowerCase();
+    const uniqueId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return `questions/${uniqueId}-${safeName}`;
+  }
+
+  async function handleImageSelected(event) {
+    const file = event.currentTarget?.files?.[0];
+    if (!file) return;
+
+    imageUploadError = '';
+    uploadingImage = true;
+
+    try {
+      const filePath = createImageFilePath(file);
+      const { error: uploadError } = await supabase.storage
+        .from('challenge-images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('challenge-images')
+        .getPublicUrl(filePath);
+
+      challenge.imageUrl = data.publicUrl;
+
+      if (!challenge.imageAlt?.trim()) {
+        challenge.imageAlt = file.name.replace(/\.[^/.]+$/, '');
+      }
+    } catch (error) {
+      imageUploadError = error?.message || 'Nao foi possivel enviar a imagem.';
+    } finally {
+      uploadingImage = false;
+      if (event.currentTarget) {
+        event.currentTarget.value = '';
+      }
+    }
+  }
+
+  function removeImage() {
+    challenge.imageUrl = '';
+    challenge.imageAlt = '';
+    challenge.imageCaption = '';
+    imageUploadError = '';
   }
 </script>
 
@@ -262,6 +330,56 @@
         ></textarea>
       </div>
     {/if}
+
+    <div class="field media-fieldset">
+      <p class="field-label">Imagem da pergunta (opcional)</p>
+      <div class="image-actions">
+        <input
+          class="sr-only"
+          type="file"
+          accept="image/*"
+          bind:this={imageInput}
+          onchange={handleImageSelected}
+        />
+        <button
+          type="button"
+          class="media-btn"
+          onclick={triggerImagePicker}
+          disabled={uploadingImage}
+        >
+          {uploadingImage ? 'Enviando imagem...' : challenge.imageUrl?.trim() ? 'Trocar imagem' : 'Anexar imagem'}
+        </button>
+
+        {#if challenge.imageUrl?.trim()}
+          <button type="button" class="media-btn secondary" onclick={removeImage}>
+            Remover imagem
+          </button>
+        {/if}
+      </div>
+
+      {#if imageUploadError}
+        <p class="media-error">{imageUploadError}</p>
+      {/if}
+
+      {#if challenge.imageUrl?.trim()}
+        <div class="image-preview-card">
+          <img
+            class="image-preview"
+            src={challenge.imageUrl}
+            alt={challenge.imageAlt?.trim() || 'Imagem da questão'}
+          />
+          {#if challenge.imageCaption?.trim()}
+            <p class="image-preview-caption">{challenge.imageCaption}</p>
+          {/if}
+        </div>
+      {/if}
+
+      <input
+        class="field-input google-input"
+        bind:value={challenge.imageCaption}
+        placeholder="Legenda da imagem (opcional)"
+      />
+    </div>
   </div>
 
   {#if errors.length > 0}
@@ -466,6 +584,95 @@
   .feedback-textarea {
     font-size: 0.92rem;
     color: var(--color-muted);
+  }
+
+  .media-fieldset {
+    padding-top: 0.35rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.16);
+  }
+
+  .image-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .media-btn {
+    border: 1px solid rgba(139, 92, 246, 0.45);
+    border-radius: 999px;
+    background: rgba(139, 92, 246, 0.14);
+    color: var(--color-text);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 0.6rem 1rem;
+    transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .media-btn:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.22);
+    border-color: rgba(139, 92, 246, 0.7);
+    transform: translateY(-1px);
+  }
+
+  .media-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+  }
+
+  .media-btn.secondary {
+    border-color: rgba(148, 163, 184, 0.32);
+    background: rgba(15, 23, 42, 0.35);
+    color: var(--color-muted);
+  }
+
+  .media-btn.secondary:hover:not(:disabled) {
+    border-color: rgba(248, 113, 113, 0.45);
+    color: var(--color-text);
+    background: rgba(127, 29, 29, 0.18);
+  }
+
+  .media-error {
+    font-size: 0.82rem;
+    color: var(--color-wrong);
+    line-height: 1.4;
+  }
+
+  .image-preview-card {
+    margin-top: 0.25rem;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.45);
+    overflow: hidden;
+    max-width: 420px;
+  }
+
+  .image-preview {
+    width: 100%;
+    display: block;
+    height: auto;
+    object-fit: contain;
+    max-height: 240px;
+    background: rgba(15, 23, 42, 0.55);
+  }
+
+  .image-preview-caption {
+    padding: 0.65rem 0.8rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--color-muted);
+    line-height: 1.4;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .feedback-textarea {

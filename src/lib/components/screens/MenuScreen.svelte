@@ -2,11 +2,18 @@
   import { navigate } from '../../router.svelte.js';
   import { fetchModules } from '../../supabase/modules.js';
 
+  const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
+
   let modules = $state([]);
   let loading = $state(true);
   let error = $state('');
   let showHelp = $state(false);
   let helpSection = $state('instructions');
+  let showStudentModal = $state(false);
+  let selectedModuleId = $state('');
+  let studentName = $state('');
+  let studentNameError = $state('');
+  let studentNameInput = $state();
   const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Nicolas Oliveira';
   const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Sergio Claudino';
 
@@ -25,8 +32,53 @@
   // Carrega módulos ao montar
   $effect(() => { load(); });
 
+  $effect(() => {
+    if (!showStudentModal) return;
+    const focusTimer = setTimeout(() => {
+      studentNameInput?.focus();
+    }, 0);
+
+    return () => clearTimeout(focusTimer);
+  });
+
+  function getSavedStudentName() {
+    if (typeof window === 'undefined') return '';
+    return window.sessionStorage.getItem(STUDENT_NAME_KEY) || '';
+  }
+
+  function openStudentModal(moduleId) {
+    selectedModuleId = moduleId;
+    studentName = getSavedStudentName();
+    studentNameError = '';
+    showStudentModal = true;
+  }
+
+  function closeStudentModal() {
+    showStudentModal = false;
+    selectedModuleId = '';
+    studentNameError = '';
+  }
+
   function playModule(id) {
-    navigate(`/play/${id}`);
+    openStudentModal(id);
+  }
+
+  function confirmStudentName(event) {
+    event?.preventDefault?.();
+
+    const trimmedName = studentName.trim();
+    if (!trimmedName) {
+      studentNameError = 'Digite seu nome para iniciar o modulo.';
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(STUDENT_NAME_KEY, trimmedName);
+    }
+
+    const moduleId = selectedModuleId;
+    closeStudentModal();
+    navigate(`/play/${moduleId}`);
   }
 
   function openEditor() {
@@ -45,6 +97,10 @@
   function handleWindowKeydown(event) {
     if (event.key === 'Escape' && showHelp) {
       closeHelp();
+    }
+
+    if (event.key === 'Escape' && showStudentModal) {
+      closeStudentModal();
     }
   }
 
@@ -169,6 +225,53 @@
         <p class="credits-line"><strong>Professor:</strong> {mentorName}</p>
         <p class="credits-line"><strong>Projeto:</strong> Alquimia Verbal — aprendizado de língua portuguesa em formato de jogo.</p>
       {/if}
+    </div>
+  </div>
+{/if}
+
+{#if showStudentModal}
+  <div class="help-overlay" role="presentation" onmousedown={closeStudentModal}>
+    <div
+      class="help-modal student-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Informar nome do aluno"
+      tabindex="-1"
+      onmousedown={stopMouseDown}
+    >
+      <form onsubmit={confirmStudentName}>
+        <div class="help-header">
+          <h2 class="help-title">Antes de jogar</h2>
+          <button type="button" class="help-close" onclick={closeStudentModal} aria-label="Fechar">x</button>
+        </div>
+
+        <p class="student-copy">Digite seu nome para entrar no modulo.</p>
+
+        <div class="student-field">
+          <label class="field-label" for="student-name-input">Nome do aluno</label>
+          <input
+            id="student-name-input"
+            class="student-input"
+            bind:value={studentName}
+            bind:this={studentNameInput}
+            placeholder="Ex.: Maria Souza"
+            maxlength="80"
+          />
+        </div>
+
+        {#if studentNameError}
+          <p class="student-error">{studentNameError}</p>
+        {/if}
+
+        <div class="student-actions">
+          <button type="button" class="student-btn secondary" onclick={closeStudentModal}>
+            Cancelar
+          </button>
+          <button type="submit" class="student-btn primary">
+            Comecar
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 {/if}
@@ -507,6 +610,83 @@
     margin-bottom: 0.35rem;
   }
 
+  .student-modal {
+    width: min(460px, 94vw);
+  }
+
+  .student-copy {
+    font-size: 0.92rem;
+    color: var(--color-muted);
+    line-height: 1.45;
+    margin-bottom: 0.9rem;
+  }
+
+  .student-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .student-input {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.68);
+    color: var(--color-text);
+    padding: 0.9rem 1rem;
+    font-size: 0.96rem;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .student-input:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.82);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+  }
+
+  .student-error {
+    font-size: 0.84rem;
+    color: var(--color-wrong);
+    margin-top: 0.7rem;
+  }
+
+  .student-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    margin-top: 1rem;
+  }
+
+  .student-btn {
+    border-radius: 999px;
+    padding: 0.7rem 1.1rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+  }
+
+  .student-btn.primary {
+    border: 1px solid rgba(139, 92, 246, 0.72);
+    background: rgba(139, 92, 246, 0.24);
+    color: var(--color-text);
+  }
+
+  .student-btn.primary:hover {
+    transform: translateY(-1px);
+    background: rgba(139, 92, 246, 0.34);
+  }
+
+  .student-btn.secondary {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.4);
+    color: var(--color-muted);
+  }
+
+  .student-btn.secondary:hover {
+    border-color: rgba(148, 163, 184, 0.4);
+    color: var(--color-text);
+  }
+
   @keyframes help-pop {
     from {
       transform: translateY(8px) scale(0.98);
@@ -594,6 +774,14 @@
 
     .help-modal {
       padding: 0.85rem 0.82rem 0.78rem;
+    }
+
+    .student-actions {
+      flex-direction: column-reverse;
+    }
+
+    .student-btn {
+      width: 100%;
     }
 
     .help-line,

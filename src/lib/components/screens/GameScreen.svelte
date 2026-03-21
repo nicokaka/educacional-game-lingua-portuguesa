@@ -3,12 +3,14 @@
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';
   import { initAudio, playSound } from '../../engine/feedbackEngine.js';
+  import { createModuleAttempt } from '../../supabase/attempts.js';
   import ChallengeHost from '../ChallengeHost.svelte';
   import HUD from '../shared/HUD.svelte';
   import MonsterSvg from './MonsterSvg.svelte';
   import { navigate } from '../../router.svelte.js';
 
   const LOAD_TIMEOUT_MS = 12000;
+  const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
   let { moduleId } = $props();
 
   let game = getState();
@@ -24,9 +26,18 @@
   let isPlayerHit = $state(false);
   let finalMaxScore = $derived(game.maxScore > 0 ? game.maxScore : game.score);
   let previousPhase = $state('menu');
+  let attemptSaved = $state(false);
 
   $effect(() => {
     if (moduleId) {
+      if (typeof window !== 'undefined') {
+        const studentName = window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim();
+        if (!studentName) {
+          navigate('/');
+          return;
+        }
+      }
+
       loadModule(moduleId);
     }
 
@@ -79,6 +90,26 @@
       });
     }
 
+    if (!attemptSaved && (phase === 'victory' || phase === 'game_over')) {
+      const studentName = typeof window !== 'undefined'
+        ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
+        : '';
+
+      if (studentName) {
+        attemptSaved = true;
+
+        void createModuleAttempt({
+          module_id: moduleId,
+          student_name: studentName,
+          score: game.score,
+          max_score: finalMaxScore,
+          completed: phase === 'victory',
+        }).catch((error) => {
+          console.error('[Alquimia Verbal] Falha ao salvar tentativa:', error.message);
+        });
+      }
+    }
+
     previousPhase = phase;
   });
 
@@ -94,6 +125,7 @@
     loading = true;
     loadError = '';
     manager = null;
+    attemptSaved = false;
 
     try {
       const data = await fetchModuleWithChallenges(id, { signal: controller.signal });
@@ -144,6 +176,7 @@
 
   function handleRestart() {
     if (manager) manager.reset();
+    attemptSaved = false;
     resetToMenu();
     loadModule(moduleId);
   }
