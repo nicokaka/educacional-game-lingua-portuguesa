@@ -1,6 +1,7 @@
 <script>
   import { navigate } from '../../router.svelte.js';
   import { fetchModules } from '../../supabase/modules.js';
+  import { fetchModuleLeaderboard } from '../../supabase/attempts.js';
 
   const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
 
@@ -14,6 +15,12 @@
   let studentName = $state('');
   let studentNameError = $state('');
   let studentNameInput = $state();
+  let showLeaderboardModal = $state(false);
+  let leaderboardLoading = $state(false);
+  let leaderboardError = $state('');
+  let leaderboardModule = $state(null);
+  let leaderboardTop3 = $state([]);
+  let currentStudentLeaderboard = $state(null);
   const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Nicolas Oliveira';
   const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Sergio Claudino';
 
@@ -85,6 +92,35 @@
     navigate('/editor');
   }
 
+  async function openLeaderboard(moduleData) {
+    showLeaderboardModal = true;
+    leaderboardLoading = true;
+    leaderboardError = '';
+    leaderboardModule = moduleData;
+    leaderboardTop3 = [];
+    currentStudentLeaderboard = null;
+
+    try {
+      const studentName = getSavedStudentName().trim();
+      const result = await fetchModuleLeaderboard(moduleData.id, studentName);
+      leaderboardTop3 = result.top3;
+      currentStudentLeaderboard = result.currentStudent;
+    } catch (error) {
+      leaderboardError = error.message;
+    } finally {
+      leaderboardLoading = false;
+    }
+  }
+
+  function closeLeaderboard() {
+    showLeaderboardModal = false;
+    leaderboardLoading = false;
+    leaderboardError = '';
+    leaderboardModule = null;
+    leaderboardTop3 = [];
+    currentStudentLeaderboard = null;
+  }
+
   function openHelp(section = 'instructions') {
     helpSection = section;
     showHelp = true;
@@ -101,6 +137,10 @@
 
     if (event.key === 'Escape' && showStudentModal) {
       closeStudentModal();
+    }
+
+    if (event.key === 'Escape' && showLeaderboardModal) {
+      closeLeaderboard();
     }
   }
 
@@ -161,16 +201,27 @@
     <div class="modules-grid">
       <h2 class="section-title">📚 Escolha um Módulo</h2>
       {#each modules as mod (mod.id)}
-        <button class="module-card" onclick={() => playModule(mod.id)}>
-          <div class="module-card-header">
-            <span class="module-icon">📖</span>
-            <span class="module-title">{mod.title}</span>
-          </div>
-          <div class="module-card-footer">
-            <span class="module-author">✍️ {mod.author}</span>
-            <span class="module-count">{mod.challengeCount} desafios</span>
-          </div>
-        </button>
+        <div class="module-row">
+          <button class="module-card" onclick={() => playModule(mod.id)}>
+            <div class="module-card-header">
+              <span class="module-icon">📖</span>
+              <span class="module-title">{mod.title}</span>
+            </div>
+            <div class="module-card-footer">
+              <span class="module-author">✍️ {mod.author}</span>
+              <span class="module-count">{mod.challengeCount} desafios</span>
+            </div>
+          </button>
+
+          <button
+            class="module-rank-btn"
+            onclick={() => openLeaderboard(mod)}
+            aria-label={"Abrir placar do modulo " + mod.title}
+            title="Ver placar"
+          >
+            🏆 Placar
+          </button>
+        </div>
       {/each}
     </div>
   {/if}
@@ -272,6 +323,83 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+{/if}
+
+{#if showLeaderboardModal}
+  <div class="help-overlay" role="presentation" onmousedown={closeLeaderboard}>
+    <div
+      class="help-modal leaderboard-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Placar do modulo"
+      tabindex="-1"
+      onmousedown={stopMouseDown}
+    >
+      <div class="help-header">
+        <h2 class="help-title">🏆 Placar</h2>
+        <button type="button" class="help-close" onclick={closeLeaderboard} aria-label="Fechar">x</button>
+      </div>
+
+      {#if leaderboardModule}
+        <p class="leaderboard-module-title">{leaderboardModule.title}</p>
+      {/if}
+
+      {#if leaderboardLoading}
+        <div class="loading-state leaderboard-state">
+          <div class="spinner"></div>
+          <p>Carregando placar...</p>
+        </div>
+      {:else if leaderboardError}
+        <div class="error-state leaderboard-state">
+          <p class="error-text">⚠️ {leaderboardError}</p>
+        </div>
+      {:else if leaderboardTop3.length === 0}
+        <div class="empty-state leaderboard-state">
+          <p class="empty-text">Ainda nao ha tentativas neste modulo.</p>
+          <p class="empty-hint">Jogue uma vez para inaugurar o placar.</p>
+        </div>
+      {:else}
+        <div class="leaderboard-list">
+          {#each leaderboardTop3 as entry, index}
+            <div class="leaderboard-entry">
+              <div class="leaderboard-rank">#{index + 1}</div>
+              <div class="leaderboard-main">
+                <div class="leaderboard-name">{entry.student_name}</div>
+                <div class="leaderboard-meta">
+                  <span>{Math.round(entry.percentage * 100)}%</span>
+                  <span>{entry.score}/{entry.max_score}</span>
+                  {#if entry.completed}
+                    <span>Concluiu</span>
+                  {/if}
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      <div class="leaderboard-divider"></div>
+
+      <h3 class="help-subtitle">Sua posicao</h3>
+      {#if currentStudentLeaderboard}
+        <div class="leaderboard-entry current-student">
+          <div class="leaderboard-rank">#{currentStudentLeaderboard.rank}</div>
+          <div class="leaderboard-main">
+            <div class="leaderboard-name">{currentStudentLeaderboard.student_name}</div>
+            <div class="leaderboard-meta">
+              <span>{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
+              <span>{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score}</span>
+              {#if currentStudentLeaderboard.completed}
+                <span>Concluiu</span>
+              {/if}
+            </div>
+          </div>
+        </div>
+      {:else}
+        <p class="empty-hint">Voce ainda nao tem tentativa registrada neste modulo.</p>
+      {/if}
     </div>
   </div>
 {/if}
@@ -393,6 +521,13 @@
     z-index: 10;
   }
 
+  .module-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    align-items: stretch;
+  }
+
   .module-card {
     width: 100%;
     background: var(--color-surface);
@@ -412,6 +547,24 @@
     border-color: var(--color-primary);
     transform: translateY(-2px);
     box-shadow: 0 4px 20px var(--color-primary-glow);
+  }
+
+  .module-rank-btn {
+    border: 1px solid rgba(250, 204, 21, 0.28);
+    border-radius: var(--radius-lg);
+    background: linear-gradient(180deg, rgba(59, 44, 7, 0.58), rgba(30, 41, 59, 0.92));
+    color: #fde68a;
+    font-size: 0.84rem;
+    font-weight: 700;
+    padding: 0.8rem 0.95rem;
+    white-space: nowrap;
+    transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .module-rank-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(250, 204, 21, 0.5);
+    box-shadow: 0 6px 18px rgba(250, 204, 21, 0.12);
   }
 
   .module-card-header {
@@ -614,6 +767,77 @@
     width: min(460px, 94vw);
   }
 
+  .leaderboard-modal {
+    width: min(520px, 95vw);
+  }
+
+  .leaderboard-module-title {
+    font-size: 0.96rem;
+    color: var(--color-text);
+    margin-bottom: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .leaderboard-state {
+    padding: 1rem 0.25rem;
+  }
+
+  .leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .leaderboard-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.36);
+    padding: 0.8rem 0.9rem;
+  }
+
+  .leaderboard-entry.current-student {
+    border-color: rgba(139, 92, 246, 0.42);
+    background: rgba(139, 92, 246, 0.1);
+  }
+
+  .leaderboard-rank {
+    min-width: 52px;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #facc15;
+  }
+
+  .leaderboard-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+  }
+
+  .leaderboard-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+    word-break: break-word;
+  }
+
+  .leaderboard-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.75rem;
+    font-size: 0.82rem;
+    color: var(--color-muted);
+  }
+
+  .leaderboard-divider {
+    height: 1px;
+    background: var(--color-border);
+    margin: 1rem 0 0.8rem;
+  }
+
   .student-copy {
     font-size: 0.92rem;
     color: var(--color-muted);
@@ -752,6 +976,16 @@
 
     .module-card {
       padding: 0.82rem 1rem;
+    }
+
+    .module-row {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+
+    .module-rank-btn {
+      width: 100%;
+      padding: 0.72rem 0.9rem;
     }
 
     .module-title {
