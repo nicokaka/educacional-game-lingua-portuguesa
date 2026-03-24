@@ -248,6 +248,14 @@
     openLeaderboard(leaderboardModule);
   }
 
+  function reopenLeaderboardStudentModal() {
+    if (!leaderboardModule) return;
+    const currentModule = leaderboardModule;
+    closeLeaderboard();
+    pendingLeaderboardModule = currentModule;
+    openStudentModal('', 'leaderboard');
+  }
+
   function openResetLeaderboardPrompt() {
     showResetLeaderboardPrompt = true;
     resetLeaderboardPassword = '';
@@ -493,6 +501,13 @@
               : 'Digite seu nome para entrar no modulo.'}
         </p>
 
+        {#if studentModalMode === 'leaderboard'}
+          <div class="student-tip-card">
+            <span class="student-tip-badge">Placar</span>
+            <p>Voce pode entrar sem nome para ver o top 3 da turma. O nome serve apenas para destacar sua posicao.</p>
+          </div>
+        {/if}
+
         <div class="student-field">
           <label class="field-label" for="student-classroom-select">Turma</label>
           <select
@@ -525,6 +540,9 @@
             placeholder="Ex.: Maria Souza"
             maxlength="80"
           />
+          {#if studentModalMode === 'leaderboard'}
+            <p class="student-helper">Se preferir, deixe este campo vazio e veja apenas o ranking da turma.</p>
+          {/if}
         </div>
 
         {#if studentNameError}
@@ -571,10 +589,33 @@
               ? 'Classificacao da sua turma nesta aula.'
               : 'Classificacao recente deste modulo.'}
           </p>
+          <div class="leaderboard-filter-card">
+            <div class="leaderboard-filter-copy">
+              <span class="leaderboard-filter-label">Filtro ativo</span>
+              <strong>{leaderboardClassroomName || 'Todas as turmas recentes'}</strong>
+              <span>
+                {leaderboardStudentName
+                  ? `Posicao destacada para ${leaderboardStudentName}.`
+                  : 'Sem nome informado: mostrando apenas o ranking da turma.'}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="leaderboard-filter-btn"
+              onclick={reopenLeaderboardStudentModal}
+            >
+              Ajustar filtro
+            </button>
+          </div>
           <div class="leaderboard-context">
             <span class="leaderboard-chip">Ultimas {MODULE_LEADERBOARD_WINDOW_HOURS}h</span>
             {#if leaderboardClassroomName}
               <span class="leaderboard-chip classroom">{leaderboardClassroomName}</span>
+            {/if}
+            {#if leaderboardStudentName}
+              <span class="leaderboard-chip viewer">{leaderboardStudentName}</span>
+            {:else}
+              <span class="leaderboard-chip viewer empty">Sem nome</span>
             {/if}
           </div>
         </div>
@@ -646,13 +687,22 @@
           </div>
         </div>
       {:else}
-        <p class="empty-hint">
-          {!leaderboardStudentName
-            ? 'Digite seu nome para destacar sua posicao no ranking.'
-            : leaderboardClassroomName
-            ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} nas ultimas 12 horas.`
-            : `Voce ainda nao tem tentativa registrada neste modulo nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
-        </p>
+        <div class="leaderboard-empty-card">
+          <p class="empty-hint">
+            {!leaderboardStudentName
+              ? 'Digite seu nome para destacar sua posicao no ranking.'
+              : leaderboardClassroomName
+              ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} nas ultimas 12 horas.`
+              : `Voce ainda nao tem tentativa registrada neste modulo nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
+          </p>
+          <button
+            type="button"
+            class="leaderboard-inline-link"
+            onclick={reopenLeaderboardStudentModal}
+          >
+            {leaderboardStudentName ? 'Trocar turma ou nome' : 'Informar nome ou trocar turma'}
+          </button>
+        </div>
       {/if}
 
       <div class="leaderboard-divider"></div>
@@ -1101,6 +1151,45 @@
     margin-bottom: 0.95rem;
   }
 
+  .leaderboard-filter-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.32);
+  }
+
+  .leaderboard-filter-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    min-width: 0;
+  }
+
+  .leaderboard-filter-copy strong {
+    color: var(--color-text);
+    font-size: 0.98rem;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+
+  .leaderboard-filter-copy span:last-child {
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    line-height: 1.45;
+  }
+
+  .leaderboard-filter-label {
+    color: #cbd5e1;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
   .leaderboard-context {
     display: flex;
     flex-wrap: wrap;
@@ -1120,6 +1209,36 @@
   .leaderboard-chip.classroom {
     border-color: rgba(56, 189, 248, 0.28);
     background: rgba(56, 189, 248, 0.1);
+    color: #dbeafe;
+  }
+
+  .leaderboard-chip.viewer {
+    border-color: rgba(139, 92, 246, 0.32);
+    background: rgba(139, 92, 246, 0.12);
+    color: #efe8ff;
+  }
+
+  .leaderboard-chip.viewer.empty {
+    border-color: rgba(148, 163, 184, 0.24);
+    background: rgba(148, 163, 184, 0.08);
+    color: #cbd5e1;
+  }
+
+  .leaderboard-filter-btn {
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.14), rgba(15, 23, 42, 0.4));
+    color: var(--color-text);
+    padding: 0.55rem 0.88rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+  }
+
+  .leaderboard-filter-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.42);
     color: #dbeafe;
   }
 
@@ -1224,6 +1343,34 @@
     margin: 1rem 0 0.8rem;
   }
 
+  .leaderboard-empty-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(15, 23, 42, 0.3);
+  }
+
+  .leaderboard-inline-link {
+    align-self: flex-start;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 999px;
+    background: rgba(56, 189, 248, 0.1);
+    color: #dbeafe;
+    padding: 0.42rem 0.78rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    transition: all var(--transition-fast);
+  }
+
+  .leaderboard-inline-link:hover {
+    transform: translateY(-1px);
+    border-color: rgba(56, 189, 248, 0.42);
+    background: rgba(56, 189, 248, 0.16);
+  }
+
   .leaderboard-reset {
     display: flex;
     flex-direction: column;
@@ -1260,6 +1407,36 @@
     color: var(--color-muted);
     line-height: 1.45;
     margin-bottom: 0.9rem;
+  }
+
+  .student-tip-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.32rem;
+    margin-bottom: 0.95rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(56, 189, 248, 0.1), rgba(15, 23, 42, 0.22));
+  }
+
+  .student-tip-card p {
+    color: #dbeafe;
+    font-size: 0.84rem;
+    line-height: 1.5;
+  }
+
+  .student-tip-badge {
+    width: fit-content;
+    border-radius: 999px;
+    padding: 0.24rem 0.58rem;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    background: rgba(15, 23, 42, 0.4);
+    color: #dbeafe;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 
   .student-field {
@@ -1435,6 +1612,18 @@
 
     .help-modal {
       padding: 0.85rem 0.82rem 0.78rem;
+    }
+
+    .leaderboard-filter-card {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .leaderboard-filter-btn,
+    .leaderboard-inline-link {
+      width: 100%;
+      justify-content: center;
+      text-align: center;
     }
 
     .student-actions {

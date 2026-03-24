@@ -878,3 +878,112 @@ test('placar abre sem nome do aluno e mostra mensagem neutra para destacar posic
   await expect(page.locator('.leaderboard-entry.current-student')).toHaveCount(0);
   await expect(page.getByLabel('Informar nome do aluno')).toHaveCount(0);
 });
+
+test('placar permite trocar de turma depois de abrir o ranking', async ({ page }) => {
+  const moduleId = 'module-leaderboard-change-classroom';
+  const classrooms = [
+    {
+      id: 'class-a',
+      name: 'Turma A',
+      sort_order: 1,
+      active: true,
+      created_at: '2026-03-20T10:00:00.000Z',
+    },
+    {
+      id: 'class-b',
+      name: 'Turma B',
+      sort_order: 2,
+      active: true,
+      created_at: '2026-03-20T10:01:00.000Z',
+    },
+  ];
+  const modulesListResponse = [
+    {
+      id: moduleId,
+      title: 'Modulo Placar Troca Turma',
+      author: 'Teste',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+
+  await page.route('**/rest/v1/classrooms*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(classrooms),
+    });
+  });
+
+  await page.route('**/rest/v1/modules*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modulesListResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/module_attempts*', async (route, request) => {
+    const url = new URL(request.url());
+    const rawOrFilter = url.searchParams.get('or') || '';
+    const classroomMatch = rawOrFilter.match(/classroom_id\.eq\.([^,)\s]+)/);
+    const classroomId = classroomMatch?.[1] || '';
+
+    const rows = classroomId === 'class-b'
+      ? [
+          {
+            id: 'attempt-b',
+            module_id: moduleId,
+            classroom_id: 'class-b',
+            classroom_name: 'Turma B',
+            student_name: 'Bruna',
+            score: 20,
+            max_score: 20,
+            completed: true,
+            created_at: '2026-03-21T11:00:00.000Z',
+          },
+        ]
+      : [
+          {
+            id: 'attempt-a',
+            module_id: moduleId,
+            classroom_id: 'class-a',
+            classroom_name: 'Turma A',
+            student_name: 'Ana',
+            score: 10,
+            max_score: 20,
+            completed: false,
+            created_at: '2026-03-21T11:00:00.000Z',
+          },
+        ];
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(rows),
+    });
+  });
+
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.sessionStorage.setItem('alquimia-verbal:classroom-id', 'class-a');
+    window.sessionStorage.setItem('alquimia-verbal:classroom-name', 'Turma A');
+    window.sessionStorage.removeItem('alquimia-verbal:student-name');
+  });
+  await page.goto('/');
+
+  await page.locator('.module-rank-btn').click();
+  await expect(page.locator('.leaderboard-chip.classroom')).toHaveText('Turma A');
+  await expect(page.getByText('Ana')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Ajustar filtro' }).click();
+  await expect(page.getByLabel('Informar nome do aluno')).toBeVisible();
+  await page.locator('#student-classroom-select').selectOption({ label: 'Turma B' });
+  await page.locator('#student-name-input').fill('');
+  await page.getByRole('button', { name: 'Ver placar' }).click();
+
+  await expect(page.locator('.leaderboard-chip.classroom')).toHaveText('Turma B');
+  await expect(page.getByText('Bruna')).toBeVisible();
+  await expect(page.getByText('Ana')).toHaveCount(0);
+});
