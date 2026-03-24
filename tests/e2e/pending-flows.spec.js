@@ -805,7 +805,7 @@ test('placar mostra nao concluiu para tentativa salva com completed false', asyn
   await expect(page.getByText('Em andamento')).toHaveCount(0);
 });
 
-test('placar abre sem nome do aluno e mostra mensagem neutra para destacar posicao', async ({ page }) => {
+test('placar abre sem nome do aluno e mostra a classificacao completa da turma', async ({ page }) => {
   const moduleId = 'module-leaderboard-without-name';
   const classroom = {
     id: 'class-test',
@@ -835,6 +835,39 @@ test('placar abre sem nome do aluno e mostra mensagem neutra para destacar posic
       max_score: 30,
       completed: true,
       created_at: '2026-03-21T11:00:00.000Z',
+    },
+    {
+      id: 'attempt-2',
+      module_id: moduleId,
+      classroom_id: classroom.id,
+      classroom_name: classroom.name,
+      student_name: 'Bruno',
+      score: 25,
+      max_score: 30,
+      completed: true,
+      created_at: '2026-03-21T10:00:00.000Z',
+    },
+    {
+      id: 'attempt-3',
+      module_id: moduleId,
+      classroom_id: classroom.id,
+      classroom_name: classroom.name,
+      student_name: 'Carla',
+      score: 20,
+      max_score: 30,
+      completed: false,
+      created_at: '2026-03-21T09:00:00.000Z',
+    },
+    {
+      id: 'attempt-4',
+      module_id: moduleId,
+      classroom_id: classroom.id,
+      classroom_name: classroom.name,
+      student_name: 'Diego',
+      score: 15,
+      max_score: 30,
+      completed: false,
+      created_at: '2026-03-21T08:00:00.000Z',
     },
   ];
 
@@ -874,7 +907,11 @@ test('placar abre sem nome do aluno e mostra mensagem neutra para destacar posic
 
   await expect(page.getByRole('dialog', { name: 'Placar do modulo' })).toBeVisible();
   await expect(page.getByText('Ana')).toBeVisible();
+  await expect(page.getByText('Bruno')).toBeVisible();
+  await expect(page.getByText('Carla')).toBeVisible();
+  await expect(page.getByText('Diego')).toBeVisible();
   await expect(page.getByText('Digite seu nome para destacar sua posicao no ranking.')).toBeVisible();
+  await expect(page.getByText('Sem nome informado: mostrando a classificacao completa da turma.')).toBeVisible();
   await expect(page.locator('.leaderboard-entry.current-student')).toHaveCount(0);
   await expect(page.getByLabel('Informar nome do aluno')).toHaveCount(0);
 });

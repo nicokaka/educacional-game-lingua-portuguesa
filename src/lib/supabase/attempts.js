@@ -58,7 +58,7 @@ export async function createModuleAttempt(attempt) {
 }
 
 /**
- * Retorna o top 3 e a posicao do aluno atual em um modulo.
+ * Retorna a classificacao da turma e a posicao do aluno atual em um modulo.
  * @param {string} moduleId
  * @param {string} currentStudentName
  * @param {string} currentClassroomId
@@ -108,7 +108,7 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
     : -1;
 
   return {
-    top3: bestByStudent.slice(0, 3),
+    top3: bestByStudent,
     currentStudent: currentStudentIndex === -1
       ? null
       : {

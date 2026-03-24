@@ -504,7 +504,7 @@
         {#if studentModalMode === 'leaderboard'}
           <div class="student-tip-card">
             <span class="student-tip-badge">Placar</span>
-            <p>Voce pode entrar sem nome para ver o top 3 da turma. O nome serve apenas para destacar sua posicao.</p>
+            <p>Voce pode entrar sem nome para ver a classificacao completa da turma. O nome serve apenas para destacar sua posicao.</p>
           </div>
         {/if}
 
@@ -596,7 +596,7 @@
               <span>
                 {leaderboardStudentName
                   ? `Posicao destacada para ${leaderboardStudentName}.`
-                  : 'Sem nome informado: mostrando apenas o ranking da turma.'}
+                  : 'Sem nome informado: mostrando a classificacao completa da turma.'}
               </span>
             </div>
             <button
