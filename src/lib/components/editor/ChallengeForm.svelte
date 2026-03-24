@@ -199,7 +199,7 @@
       class="field-input google-textarea prompt-input"
       bind:value={challenge.prompt}
       placeholder={challenge.type === 'drag_drop'
-        ? 'Use _____ para indicar a lacuna'
+        ? 'Digite o enunciado da atividade...'
         : challenge.type === 'true_false'
           ? 'Digite a instrucao do desafio...'
           : 'Digite a pergunta...'}

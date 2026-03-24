@@ -1,13 +1,20 @@
 <script>
-  import { getRenderer } from '../engine/challengeRegistry.js';
+  import { getChallengeRuntimeIssue, getRenderer } from '../engine/challengeRegistry.js';
 
   let { challenge, onAnswer, onHint } = $props();
 
   let RendererComponent = $derived(getRenderer(challenge?.type));
+  let runtimeIssue = $derived(challenge ? getChallengeRuntimeIssue(challenge) : null);
 </script>
 
 <div class="challenge-host">
-  {#if challenge && RendererComponent}
+  {#if challenge && runtimeIssue}
+    <div class="renderer-wrapper" style="animation: slideIn 0.4s ease;">
+      <div class="runtime-fallback">
+        <p>Esta atividade esta sendo atualizada.</p>
+      </div>
+    </div>
+  {:else if challenge && RendererComponent}
     <div class="renderer-wrapper" style="animation: slideIn 0.4s ease;">
       {#if challenge.imageUrl?.trim()}
         <figure class="challenge-image-block">
@@ -75,6 +82,17 @@
     text-align: center;
     color: var(--color-muted, #94a3b8);
     padding: 2rem;
+  }
+
+  .runtime-fallback {
+    width: 100%;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.4);
+    color: var(--color-text, #e2e8f0);
+    text-align: center;
+    line-height: 1.5;
   }
 
   @media (max-width: 640px) {

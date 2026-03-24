@@ -77,13 +77,21 @@ export function submitAnswer(answer, manager) {
     applyCorrectAnswerState(state, challenge);
     dispatchFeedback('correct');
 
-    setTimeout(() => {
+    const goToNext = () => {
       try {
         loadNextChallenge(manager);
       } catch (error) {
         setError(`Erro ao avancar para a proxima pergunta: ${error.message}`);
       }
-    }, 800);
+    };
+
+    // No ultimo acerto, avanca imediatamente para reduzir o risco
+    // de perder a tentativa ao sair da tela antes do estado terminal.
+    if (manager?.hasNext?.()) {
+      setTimeout(goToNext, 800);
+    } else {
+      goToNext();
+    }
 
     return { correct: true };
   }

@@ -2,21 +2,27 @@ import { supabase } from './client.js';
 
 export const MODULE_LEADERBOARD_WINDOW_HOURS = 12;
 
-function getLeaderboardWindowStart() {
+function getLeaderboardWindowStart(period = '12h') {
+  if (period === 'today') {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    return todayStart.toISOString();
+  }
+
   return new Date(Date.now() - (MODULE_LEADERBOARD_WINDOW_HOURS * 60 * 60 * 1000)).toISOString();
 }
 
-async function fetchLeaderboardAttemptRows(moduleId, currentClassroomId = '') {
-  const trimmedCurrentClassroomId = currentClassroomId?.trim?.() || '';
+async function fetchLeaderboardAttemptRows(moduleId, filterClassroomId = '', period = '12h') {
+  const trimmedFilterClassroomId = filterClassroomId?.trim?.() || '';
 
   let query = supabase
     .from('module_attempts')
     .select('id, student_name, classroom_id, classroom_name, score, max_score, completed, created_at')
     .eq('module_id', moduleId)
-    .gte('created_at', getLeaderboardWindowStart());
+    .gte('created_at', getLeaderboardWindowStart(period));
 
-  if (trimmedCurrentClassroomId) {
-    query = query.or(`classroom_id.eq.${trimmedCurrentClassroomId},classroom_id.is.null`);
+  if (trimmedFilterClassroomId) {
+    query = query.or(`classroom_id.eq.${trimmedFilterClassroomId},classroom_id.is.null`);
   }
 
   const { data, error } = await query;
@@ -25,9 +31,9 @@ async function fetchLeaderboardAttemptRows(moduleId, currentClassroomId = '') {
     throw new Error(`Erro ao carregar placar: ${error.message}`);
   }
 
-  return trimmedCurrentClassroomId
+  return trimmedFilterClassroomId
     ? (() => {
-        const classroomRows = (data || []).filter((attempt) => attempt.classroom_id === trimmedCurrentClassroomId);
+        const classroomRows = (data || []).filter((attempt) => attempt.classroom_id === trimmedFilterClassroomId);
         return classroomRows.length > 0
           ? classroomRows
           : (data || []).filter((attempt) => !attempt.classroom_id);
@@ -62,10 +68,13 @@ export async function createModuleAttempt(attempt) {
  * @param {string} moduleId
  * @param {string} currentStudentName
  * @param {string} currentClassroomId
+ * @param {{ period?: 'today' | '12h', filterClassroomId?: string }} options
  */
-export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', currentClassroomId = '') {
+export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', currentClassroomId = '', options = {}) {
   const trimmedCurrentClassroomId = currentClassroomId?.trim?.() || '';
-  const rows = await fetchLeaderboardAttemptRows(moduleId, trimmedCurrentClassroomId);
+  const period = options?.period === 'today' ? 'today' : '12h';
+  const filterClassroomId = options?.filterClassroomId?.trim?.() || '';
+  const rows = await fetchLeaderboardAttemptRows(moduleId, filterClassroomId, period);
 
   const rankedAttempts = rows
     .map((attempt) => ({
@@ -109,6 +118,7 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
 
   return {
     top3: bestByStudent,
+    attemptCount: rows.length,
     currentStudent: currentStudentIndex === -1
       ? null
       : {
@@ -118,8 +128,9 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
   };
 }
 
-export async function clearModuleLeaderboard(moduleId, currentClassroomId = '') {
-  const rows = await fetchLeaderboardAttemptRows(moduleId, currentClassroomId);
+export async function clearModuleLeaderboard(moduleId, currentClassroomId = '', options = {}) {
+  const period = options?.period === 'today' ? 'today' : '12h';
+  const rows = await fetchLeaderboardAttemptRows(moduleId, currentClassroomId, period);
   const ids = rows.map((attempt) => attempt.id).filter(Boolean);
 
   if (ids.length === 0) return { deletedCount: 0 };
@@ -134,4 +145,74 @@ export async function clearModuleLeaderboard(moduleId, currentClassroomId = '') 
   }
 
   return { deletedCount: ids.length };
+}
+
+export async function fetchModuleAttemptRoster(moduleId) {
+  const { data, error } = await supabase
+    .from('module_attempts')
+    .select('student_name, classroom_id, classroom_name, created_at')
+    .eq('module_id', moduleId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Erro ao carregar resultados do modulo: ${error.message}`);
+  }
+
+  const rosterByIdentity = new Map();
+
+  for (const row of data || []) {
+    const studentName = row.student_name?.trim?.() || '';
+    if (!studentName) continue;
+
+    const classroomId = row.classroom_id || '';
+    const identityKey = classroomId ? `${classroomId}::${studentName}` : `legacy::${studentName}`;
+    const current = rosterByIdentity.get(identityKey);
+
+    if (!current) {
+      rosterByIdentity.set(identityKey, {
+        student_name: studentName,
+        classroom_id: classroomId,
+        classroom_name: row.classroom_name || (classroomId ? 'Turma removida ou indisponivel' : 'Turma antiga ou nao informada'),
+        attempt_count: 1,
+        last_attempt_at: row.created_at || '',
+      });
+      continue;
+    }
+
+    current.attempt_count += 1;
+    if (new Date(row.created_at).getTime() > new Date(current.last_attempt_at).getTime()) {
+      current.last_attempt_at = row.created_at || current.last_attempt_at;
+    }
+  }
+
+  return [...rosterByIdentity.values()].sort((a, b) => {
+    const dateDiff = new Date(b.last_attempt_at).getTime() - new Date(a.last_attempt_at).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return b.attempt_count - a.attempt_count;
+  });
+}
+
+export async function removeStudentFromModuleLeaderboard(moduleId, studentName, classroomId = '') {
+  const trimmedStudentName = studentName?.trim?.() || '';
+  const trimmedClassroomId = classroomId?.trim?.() || '';
+
+  if (!moduleId || !trimmedStudentName) {
+    throw new Error('Nao foi possivel identificar o registro para remover do placar.');
+  }
+
+  let query = supabase
+    .from('module_attempts')
+    .delete()
+    .eq('module_id', moduleId)
+    .eq('student_name', trimmedStudentName);
+
+  query = trimmedClassroomId
+    ? query.eq('classroom_id', trimmedClassroomId)
+    : query.is('classroom_id', null);
+
+  const { error } = await query;
+
+  if (error) {
+    throw new Error(`Erro ao remover do placar: ${error.message}`);
+  }
 }

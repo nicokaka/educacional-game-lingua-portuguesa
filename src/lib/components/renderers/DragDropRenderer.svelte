@@ -185,31 +185,52 @@
 </script>
 
 <div class="renderer drag-drop-renderer">
-  <div class="phrase-container">
-    <span class="phrase-text">{promptParts[0]}</span>
-    <button
-      type="button"
-      class="drop-zone"
-      class:filled={slotted}
-      class:drop-active={isDropZoneActive}
-      class:correct={answered && answerWasCorrect === true}
-      class:wrong={answered && answerWasCorrect === false}
-      bind:this={dropZoneEl}
-      onclick={removeSlot}
-    >
-      {#if slotted}
-        {slotted.text}
-      {:else}
-        Solte aqui
+  {#if hasPlaceholder}
+    <div class="phrase-container">
+      <span class="phrase-text">{promptParts[0]}</span>
+      <button
+        type="button"
+        class="drop-zone"
+        class:filled={slotted}
+        class:drop-active={isDropZoneActive}
+        class:correct={answered && answerWasCorrect === true}
+        class:wrong={answered && answerWasCorrect === false}
+        bind:this={dropZoneEl}
+        onclick={removeSlot}
+      >
+        {#if slotted}
+          {slotted.text}
+        {:else}
+          Solte aqui
+        {/if}
+      </button>
+      {#if promptParts[1]}
+        <span class="phrase-text">{promptParts[1]}</span>
       {/if}
-    </button>
-    {#if promptParts[1]}
-      <span class="phrase-text">{promptParts[1]}</span>
-    {/if}
-  </div>
-
-  {#if !hasPlaceholder}
-    <p class="config-warning">Esta pergunta esta sem a lacuna "_____". O professor precisa ajustar o enunciado.</p>
+    </div>
+  {:else}
+    <div class="prompt-block">
+      <p class="prompt-standalone">{promptText}</p>
+      <div class="answer-box">
+        <span class="answer-label">Complete com:</span>
+        <button
+          type="button"
+          class="drop-zone"
+          class:filled={slotted}
+          class:drop-active={isDropZoneActive}
+          class:correct={answered && answerWasCorrect === true}
+          class:wrong={answered && answerWasCorrect === false}
+          bind:this={dropZoneEl}
+          onclick={removeSlot}
+        >
+          {#if slotted}
+            {slotted.text}
+          {:else}
+            Solte aqui
+          {/if}
+        </button>
+      </div>
+    </div>
   {/if}
 
   <div class="backpack">
@@ -290,6 +311,36 @@
     word-break: break-word;
   }
 
+  .prompt-block {
+    width: min(100%, 680px);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .prompt-standalone {
+    font-size: 1.3rem;
+    color: var(--color-text, #e2e8f0);
+    line-height: 1.8;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .answer-box {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .answer-label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-muted, #94a3b8);
+  }
+
   .drop-zone {
     display: inline-flex;
     align-items: center;
@@ -338,15 +389,6 @@
     border: 1px solid var(--color-border, #334155);
     border-radius: 18px;
     padding: 1.25rem;
-  }
-
-  .config-warning {
-    max-width: 620px;
-    margin-top: -0.8rem;
-    color: #fde68a;
-    font-size: 0.88rem;
-    line-height: 1.45;
-    text-align: center;
   }
 
   .backpack-label {
@@ -513,6 +555,10 @@
 
   @media (max-width: 640px) {
     .phrase-container {
+      font-size: 1.1rem;
+    }
+
+    .prompt-standalone {
       font-size: 1.1rem;
     }
 

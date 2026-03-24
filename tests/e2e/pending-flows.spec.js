@@ -264,6 +264,123 @@ test('resposta errada aumenta hp do monstro apos ele tomar dano', async ({ page 
   expect(hpAfterWrong.current).toBeLessThanOrEqual(hpAfterWrong.max);
 });
 
+test('renderiza drag_drop sem exigir lacuna marcada no enunciado', async ({ page }) => {
+  const moduleId = 'module-drag-drop-without-placeholder';
+  const challenges = [
+    {
+      id: 'dd-invalid',
+      module_id: moduleId,
+      type: 'drag_drop',
+      prompt: 'A palavra certa e correta.',
+      difficulty: 1,
+      sort_order: 1,
+      data: {
+        correctAnswer: 'correta',
+        loot: [
+          { text: 'correta', correct: true },
+          { text: 'errada', correct: false },
+        ],
+      },
+    },
+  ];
+
+  await createModuleRoutes(page, {
+    moduleId,
+    title: 'Modulo Runtime Seguro',
+    author: 'Teste',
+    challenges,
+  });
+
+  await startPlaySession(page, moduleId);
+
+  await expect(page.locator('.drag-drop-renderer')).toBeVisible();
+  await expect(page.getByText('A palavra certa e correta.')).toBeVisible();
+  await expect(page.getByText('Complete com:')).toBeVisible();
+  await expect(page.getByText('Solte aqui')).toBeVisible();
+  await expect(page.getByText('O professor precisa ajustar o enunciado.')).toHaveCount(0);
+  await expect(page.getByText('Uma atividade foi pulada porque estava sendo atualizada.')).toHaveCount(0);
+});
+
+test('preserva a ordem das alternativas como o professor salvou', async ({ page }) => {
+  const moduleId = 'module-multiple-choice-order';
+  const challenges = [
+    {
+      id: 'mc-ordered',
+      module_id: moduleId,
+      type: 'multiple_choice',
+      prompt: 'Qual frase esta em sentido real?',
+      difficulty: 1,
+      sort_order: 1,
+      data: {
+        options: [
+          { text: 'A) Ele tem coracao de gelo.', correct: false, feedback: '' },
+          { text: 'B) A agua esta gelada.', correct: true, feedback: '' },
+          { text: 'C) Ela e uma flor.', correct: false, feedback: '' },
+          { text: 'D) Ele voou na prova.', correct: false, feedback: '' },
+        ],
+      },
+    },
+  ];
+
+  await createModuleRoutes(page, {
+    moduleId,
+    title: 'Modulo Ordem das Alternativas',
+    author: 'Teste',
+    challenges,
+  });
+
+  await startPlaySession(page, moduleId);
+
+  await expect(page.locator('.multiple-choice-renderer')).toBeVisible();
+  await expect(page.locator('.option-btn')).toHaveText([
+    'A) Ele tem coracao de gelo.',
+    'B) A agua esta gelada.',
+    'C) Ela e uma flor.',
+    'D) Ele voou na prova.',
+  ]);
+});
+
+test('pula questao open_text invalida sem mostrar textarea ambigua', async ({ page }) => {
+  const moduleId = 'module-invalid-open-text';
+  const challenges = [
+    {
+      id: 'open-invalid',
+      module_id: moduleId,
+      type: 'open_text',
+      prompt: '',
+      difficulty: 1,
+      sort_order: 1,
+      data: {
+        imageUrl: 'https://example.com/tira.png',
+      },
+    },
+    {
+      id: 'tf-valid',
+      module_id: moduleId,
+      type: 'true_false',
+      prompt: 'Pergunta valida de verdadeiro ou falso',
+      difficulty: 1,
+      sort_order: 2,
+      data: {
+        statements: [{ text: 'Esta afirmacao e verdadeira.', correctAnswer: true }],
+      },
+    },
+  ];
+
+  await createModuleRoutes(page, {
+    moduleId,
+    title: 'Modulo Open Text Invalido',
+    author: 'Teste',
+    challenges,
+  });
+
+  await startPlaySession(page, moduleId);
+
+  await expect(page.getByText('Uma atividade foi pulada porque estava sendo atualizada.')).toBeVisible();
+  await expect(page.getByText('Pergunta valida de verdadeiro ou falso')).toBeVisible();
+  await expect(page.locator('.open-text-input')).toHaveCount(0);
+});
+
 test('entra em game over apos sequencia de erros', async ({ page }) => {
   const moduleId = 'module-game-over';
   const challenges = [
@@ -614,7 +731,7 @@ test('mantem challenge_id valido para open_text apos editar modulo sem recriar a
   expect(submittedChallengeIds).toEqual(['challenge-open-text-1']);
 });
 
-test('bloqueia salvar drag_drop sem a lacuna obrigatoria', async ({ page }) => {
+test('permite salvar drag_drop sem exigir lacuna no enunciado', async ({ page }) => {
   const modulesListResponse = [
     {
       id: 'existing-module',
@@ -660,9 +777,10 @@ test('bloqueia salvar drag_drop sem a lacuna obrigatoria', async ({ page }) => {
   await page.getByPlaceholder('Opcao da mochila 2').fill('outra');
 
   await page.getByRole('button', { name: /Salvar/i }).click();
-  await expect(page.locator('.save-error')).toContainText('Use "_____" no enunciado para marcar a lacuna da resposta.');
-  expect(modulePostCount).toBe(0);
-  expect(challengePostCount).toBe(0);
+  await expect(page.getByText(/Salvo/i)).toBeVisible();
+  await expect(page.locator('.save-error')).toHaveCount(0);
+  expect(modulePostCount).toBe(1);
+  expect(challengePostCount).toBe(1);
 });
 
 test('bloqueia salvar true_false com afirmacao vazia', async ({ page }) => {
@@ -906,13 +1024,14 @@ test('placar abre sem nome do aluno e mostra a classificacao completa da turma',
   await page.locator('.module-rank-btn').click();
 
   await expect(page.getByRole('dialog', { name: 'Placar do modulo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Placar recente/i })).toBeVisible();
   await expect(page.getByText('Ana')).toBeVisible();
   await expect(page.getByText('Bruno')).toBeVisible();
   await expect(page.getByText('Carla')).toBeVisible();
   await expect(page.getByText('Diego')).toBeVisible();
-  await expect(page.getByText('Digite seu nome para destacar sua posicao no ranking.')).toBeVisible();
-  await expect(page.getByText('Sem nome informado: mostrando a classificacao completa da turma.')).toBeVisible();
+  await expect(page.getByText(/Hoje .* Turma Teste .* 4 tentativas/i)).toBeVisible();
   await expect(page.locator('.leaderboard-entry.current-student')).toHaveCount(0);
+  await expect(page.getByText('Sua posição')).toHaveCount(0);
   await expect(page.getByLabel('Informar nome do aluno')).toHaveCount(0);
 });
 
@@ -1011,16 +1130,240 @@ test('placar permite trocar de turma depois de abrir o ranking', async ({ page }
   await page.goto('/');
 
   await page.locator('.module-rank-btn').click();
-  await expect(page.locator('.leaderboard-chip.classroom')).toHaveText('Turma A');
+  await expect(page.getByText(/Hoje .* Turma A .* 1 tentativa/i)).toBeVisible();
   await expect(page.getByText('Ana')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Ajustar filtro' }).click();
+  await page.getByRole('button', { name: 'Trocar filtro' }).click();
   await expect(page.getByLabel('Informar nome do aluno')).toBeVisible();
   await page.locator('#student-classroom-select').selectOption({ label: 'Turma B' });
   await page.locator('#student-name-input').fill('');
   await page.getByRole('button', { name: 'Ver placar' }).click();
 
-  await expect(page.locator('.leaderboard-chip.classroom')).toHaveText('Turma B');
+  await expect(page.getByText('Turma B', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Bruna')).toBeVisible();
   await expect(page.getByText('Ana')).toHaveCount(0);
+});
+
+test('placar pode mostrar todas as turmas e resume o filtro ativo', async ({ page }) => {
+  const moduleId = 'module-leaderboard-all-classrooms';
+  const classrooms = [
+    {
+      id: 'class-a',
+      name: 'Turma A',
+      sort_order: 1,
+      active: true,
+      created_at: '2026-03-20T10:00:00.000Z',
+    },
+    {
+      id: 'class-b',
+      name: 'Turma B',
+      sort_order: 2,
+      active: true,
+      created_at: '2026-03-20T10:01:00.000Z',
+    },
+  ];
+  const modulesListResponse = [
+    {
+      id: moduleId,
+      title: 'Modulo Placar Geral',
+      author: 'Teste',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+
+  await page.route('**/rest/v1/classrooms*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(classrooms),
+    });
+  });
+
+  await page.route('**/rest/v1/modules*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modulesListResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/module_attempts*', async (route, request) => {
+    const url = new URL(request.url());
+    const rawOrFilter = url.searchParams.get('or') || '';
+    const classroomMatch = rawOrFilter.match(/classroom_id\.eq\.([^,)\s]+)/);
+    const classroomId = classroomMatch?.[1] || '';
+
+    const rows = classroomId === 'class-a'
+      ? [
+          {
+            id: 'attempt-a',
+            module_id: moduleId,
+            classroom_id: 'class-a',
+            classroom_name: 'Turma A',
+            student_name: 'Ana',
+            score: 10,
+            max_score: 20,
+            completed: false,
+            created_at: '2026-03-21T11:00:00.000Z',
+          },
+        ]
+      : [
+          {
+            id: 'attempt-a',
+            module_id: moduleId,
+            classroom_id: 'class-a',
+            classroom_name: 'Turma A',
+            student_name: 'Ana',
+            score: 10,
+            max_score: 20,
+            completed: false,
+            created_at: '2026-03-21T11:00:00.000Z',
+          },
+          {
+            id: 'attempt-b',
+            module_id: moduleId,
+            classroom_id: 'class-b',
+            classroom_name: 'Turma B',
+            student_name: 'Bruna',
+            score: 20,
+            max_score: 20,
+            completed: true,
+            created_at: '2026-03-21T10:00:00.000Z',
+          },
+        ];
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(rows),
+    });
+  });
+
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.sessionStorage.setItem('alquimia-verbal:classroom-id', 'class-a');
+    window.sessionStorage.setItem('alquimia-verbal:classroom-name', 'Turma A');
+    window.sessionStorage.removeItem('alquimia-verbal:student-name');
+  });
+  await page.goto('/');
+
+  await page.locator('.module-rank-btn').click();
+  await page.getByRole('button', { name: 'Trocar filtro' }).click();
+  await page.locator('#student-classroom-select').selectOption('__all__');
+  await page.getByRole('button', { name: 'Ver placar' }).click();
+
+  await expect(page.getByText(/Hoje .* Todas as turmas .* 2 tentativas/i)).toBeVisible();
+  await expect(page.getByText('Ana')).toBeVisible();
+  await expect(page.getByText('Bruna')).toBeVisible();
+});
+
+test('professor pode remover um aluno do placar do modulo', async ({ page }) => {
+  const moduleId = 'module-cleanup-teacher';
+  const modulesListResponse = [
+    {
+      id: moduleId,
+      title: 'Modulo Limpeza do Placar',
+      author: 'Teste',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+
+  let moduleAttempts = [
+    {
+      id: 'attempt-1',
+      module_id: moduleId,
+      classroom_id: 'class-a',
+      classroom_name: 'Turma A',
+      student_name: 'Aluno Teste',
+      created_at: '2026-03-21T11:00:00.000Z',
+    },
+    {
+      id: 'attempt-2',
+      module_id: moduleId,
+      classroom_id: 'class-a',
+      classroom_name: 'Turma A',
+      student_name: 'Aluno Teste',
+      created_at: '2026-03-21T10:00:00.000Z',
+    },
+    {
+      id: 'attempt-3',
+      module_id: moduleId,
+      classroom_id: 'class-b',
+      classroom_name: 'Turma B',
+      student_name: 'Outra Aluna',
+      created_at: '2026-03-21T09:00:00.000Z',
+    },
+  ];
+
+  await page.route('**/rest/v1/modules*', async (route, request) => {
+    const acceptHeader = request.headers().accept || '';
+    const url = new URL(request.url());
+    const isSingle = acceptHeader.includes('application/vnd.pgrst.object+json') || url.searchParams.has('id');
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(isSingle ? modulesListResponse[0] : modulesListResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/module_attempts*', async (route, request) => {
+    const method = request.method();
+    const url = new URL(request.url());
+
+    if (method === 'GET') {
+      const moduleIdFilter = getEqParam(url, 'module_id');
+      const rows = moduleIdFilter
+        ? moduleAttempts.filter((row) => row.module_id === moduleIdFilter)
+        : moduleAttempts;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(rows),
+      });
+      return;
+    }
+
+    if (method === 'DELETE') {
+      const moduleIdFilter = getEqParam(url, 'module_id');
+      const studentName = getEqParam(url, 'student_name');
+      const classroomId = getEqParam(url, 'classroom_id');
+      const wantsLegacy = url.searchParams.get('classroom_id') === 'is.null';
+
+      moduleAttempts = moduleAttempts.filter((row) => {
+        if (row.module_id !== moduleIdFilter) return true;
+        if (row.student_name !== studentName) return true;
+        if (classroomId) return row.classroom_id !== classroomId;
+        if (wantsLegacy) return row.classroom_id != null;
+        return false;
+      });
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+  });
+
+  await loginToEditor(page);
+  await page.getByRole('button', { name: /🧹 Placar/i }).click();
+
+  await expect(page.getByText('Aluno Teste')).toBeVisible();
+  await expect(page.getByText('2 tentativas')).toBeVisible();
+  await expect(page.getByText('Outra Aluna')).toBeVisible();
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'Remover do placar' }).first().click();
+
+  await expect(page.getByText('Aluno Teste')).toHaveCount(0);
+  await expect(page.getByText('Outra Aluna')).toBeVisible();
 });

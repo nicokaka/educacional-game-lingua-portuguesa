@@ -155,10 +155,6 @@
     }
 
     if (challenge?.type === 'drag_drop') {
-      if (prompt && !prompt.includes('_____')) {
-        errors.push('Use "_____" no enunciado para marcar a lacuna da resposta.');
-      }
-
       if (!challenge.correctAnswer?.trim()) {
         errors.push('Preencha a resposta correta.');
       }

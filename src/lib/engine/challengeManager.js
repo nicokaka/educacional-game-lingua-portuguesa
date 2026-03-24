@@ -110,8 +110,8 @@ function prepareChallenge(challenge) {
       break;
 
     case 'multiple_choice':
-      // Embaralha ordem das opções
-      prepared.options = Array.isArray(prepared.options) ? shuffle(prepared.options) : [];
+      // Preserva a ordem salva pelo professor
+      prepared.options = Array.isArray(prepared.options) ? [...prepared.options] : [];
       break;
   }
 

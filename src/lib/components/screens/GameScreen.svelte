@@ -2,6 +2,7 @@
   import { getState, startGame, submitAnswer, requestHint, resetToMenu, loadNextChallenge } from '../../stores/gameStore.svelte.js';
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';
+  import { getChallengeRuntimeIssue } from '../../engine/challengeRegistry.js';
   import { initAudio, playSound } from '../../engine/feedbackEngine.js';
   import { createModuleAttempt } from '../../supabase/attempts.js';
   import { createOpenTextResponse } from '../../supabase/writtenResponses.js';
@@ -30,6 +31,12 @@
   let finalMaxScore = $derived(game.maxScore > 0 ? game.maxScore : game.score);
   let previousPhase = $state('menu');
   let attemptSaved = $state(false);
+  let attemptSaving = $state(false);
+  let attemptSaveError = $state('');
+  let attemptSavePromise = null;
+  let attemptSaveErrorTimer = null;
+  let runtimeNotice = $state('');
+  let runtimeNoticeTimer = null;
 
   $effect(() => {
     if (moduleId) {
@@ -49,6 +56,14 @@
       activeLoadToken++;
       activeLoadController?.abort();
       activeLoadController = null;
+      if (attemptSaveErrorTimer) {
+        clearTimeout(attemptSaveErrorTimer);
+        attemptSaveErrorTimer = null;
+      }
+      if (runtimeNoticeTimer) {
+        clearTimeout(runtimeNoticeTimer);
+        runtimeNoticeTimer = null;
+      }
     };
   });
 
@@ -94,36 +109,132 @@
       });
     }
 
-    if (!attemptSaved && (phase === 'victory' || phase === 'game_over')) {
-      const studentName = typeof window !== 'undefined'
-        ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
-        : '';
-      const classroomId = typeof window !== 'undefined'
-        ? window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim()
-        : '';
-      const classroomName = typeof window !== 'undefined'
-        ? window.sessionStorage.getItem(CLASSROOM_NAME_KEY)?.trim()
-        : '';
-
-      if (studentName && classroomId) {
-        attemptSaved = true;
-
-        void createModuleAttempt({
-          module_id: moduleId,
-          classroom_id: classroomId,
-          classroom_name: classroomName || '',
-          student_name: studentName,
-          score: game.score,
-          max_score: finalMaxScore,
-          completed: phase === 'victory',
-        }).catch((error) => {
-          console.error('[Alquimia Verbal] Falha ao salvar tentativa:', error.message);
-        });
-      }
+    if (phase === 'victory' || phase === 'game_over') {
+      void saveAttemptIfNeeded(phase);
     }
 
     previousPhase = phase;
   });
+
+  $effect(() => {
+    if (loading || loadError || game.phase !== 'playing' || !manager || !game.currentChallenge) return;
+
+    const issue = getChallengeRuntimeIssue(game.currentChallenge);
+    if (!issue) return;
+
+    console.error('[Alquimia Verbal] Desafio invalido no runtime; pulando questao', {
+      moduleId,
+      challengeId: game.currentChallenge?.id || '',
+      challengeType: game.currentChallenge?.type || '',
+      prompt: game.currentChallenge?.prompt || '',
+      issue,
+    });
+
+    runtimeNotice = 'Uma atividade foi pulada porque estava sendo atualizada.';
+    if (runtimeNoticeTimer) {
+      clearTimeout(runtimeNoticeTimer);
+    }
+    runtimeNoticeTimer = setTimeout(() => {
+      runtimeNotice = '';
+      runtimeNoticeTimer = null;
+    }, 4000);
+
+    queueMicrotask(() => {
+      try {
+        loadNextChallenge(manager);
+      } catch (error) {
+        loadError = `Erro ao preparar a proxima pergunta: ${error.message}`;
+      }
+    });
+  });
+
+  function clearAttemptSaveErrorSoon() {
+    if (attemptSaveErrorTimer) {
+      clearTimeout(attemptSaveErrorTimer);
+    }
+
+    attemptSaveErrorTimer = setTimeout(() => {
+      attemptSaveError = '';
+      attemptSaveErrorTimer = null;
+    }, 8000);
+  }
+
+  function getAttemptContext(phase = game.phase) {
+    const studentName = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
+      : '';
+    const classroomId = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim()
+      : '';
+    const classroomName = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(CLASSROOM_NAME_KEY)?.trim()
+      : '';
+
+    return {
+      moduleId,
+      classroomId,
+      classroomName: classroomName || '',
+      studentName,
+      phase,
+    };
+  }
+
+  async function saveAttemptIfNeeded(phase = game.phase) {
+    if (attemptSaved) return true;
+    if (phase !== 'victory' && phase !== 'game_over') return false;
+    if (attemptSavePromise) return attemptSavePromise;
+
+    const context = getAttemptContext(phase);
+
+    if (!context.moduleId || !context.classroomId || !context.studentName) {
+      attemptSaveError = 'Nao foi possivel registrar seu resultado. Volte ao menu e tente novamente.';
+      clearAttemptSaveErrorSoon();
+      console.error('[Alquimia Verbal] Tentativa sem dados obrigatorios para salvar', context);
+      return false;
+    }
+
+    attemptSaving = true;
+    attemptSaveError = '';
+
+    attemptSavePromise = (async () => {
+      try {
+        await createModuleAttempt({
+          module_id: context.moduleId,
+          classroom_id: context.classroomId,
+          classroom_name: context.classroomName,
+          student_name: context.studentName,
+          score: game.score,
+          max_score: finalMaxScore,
+          completed: phase === 'victory',
+        });
+
+        attemptSaved = true;
+        console.info('[Alquimia Verbal] Tentativa salva com sucesso', {
+          moduleId: context.moduleId,
+          classroomId: context.classroomId,
+          studentName: context.studentName,
+          phase,
+        });
+        return true;
+      } catch (error) {
+        attemptSaveError = 'Nao foi possivel salvar seu resultado agora. Vamos tentar novamente quando voce sair desta tela.';
+        clearAttemptSaveErrorSoon();
+        console.error('[Alquimia Verbal] Falha ao salvar tentativa', {
+          moduleId: context.moduleId,
+          classroomId: context.classroomId,
+          studentName: context.studentName,
+          phase,
+          message: error?.message || 'Erro desconhecido',
+        });
+        return false;
+      } finally {
+        attemptSaving = false;
+        attemptSavePromise = null;
+      }
+    })();
+
+    return attemptSavePromise;
+  }
 
   async function loadModule(id) {
     const token = ++activeLoadToken;
@@ -138,6 +249,18 @@
     loadError = '';
     manager = null;
     attemptSaved = false;
+    attemptSaving = false;
+    attemptSaveError = '';
+    attemptSavePromise = null;
+    if (attemptSaveErrorTimer) {
+      clearTimeout(attemptSaveErrorTimer);
+      attemptSaveErrorTimer = null;
+    }
+    if (runtimeNoticeTimer) {
+      clearTimeout(runtimeNoticeTimer);
+      runtimeNoticeTimer = null;
+    }
+    runtimeNotice = '';
 
     try {
       const data = await fetchModuleWithChallenges(id, { signal: controller.signal });
@@ -151,7 +274,7 @@
       });
 
       initAudio();
-      manager = createChallengeManager(data.challenges);
+      manager = createChallengeManager(data.challenges, { randomize: false });
       startGame(data, manager);
       lastHp = game.monsterHp;
       lastPlayerHp = game.playerHp;
@@ -252,9 +375,15 @@
     return requestHint();
   }
 
-  function handleRestart() {
+  async function handleRestart() {
+    if (game.phase === 'victory' || game.phase === 'game_over') {
+      await saveAttemptIfNeeded(game.phase);
+    }
+
     if (manager) manager.reset();
     attemptSaved = false;
+    attemptSaving = false;
+    attemptSaveError = '';
     resetToMenu();
     loadModule(moduleId);
   }
@@ -263,7 +392,11 @@
     loadModule(moduleId);
   }
 
-  function goToMenu() {
+  async function goToMenu() {
+    if (game.phase === 'victory' || game.phase === 'game_over') {
+      await saveAttemptIfNeeded(game.phase);
+    }
+
     activeLoadToken++;
     activeLoadController?.abort();
     activeLoadController = null;
@@ -295,6 +428,10 @@
     <div class="top-bar">
       <button class="back-btn" onclick={goToMenu}>Voltar</button>
     </div>
+
+    {#if runtimeNotice}
+      <p class="runtime-notice">{runtimeNotice}</p>
+    {/if}
 
     <HUD
       score={game.score}
@@ -360,6 +497,12 @@
         </div>
       </div>
 
+      {#if attemptSaving}
+        <p class="attempt-save-note">Salvando seu resultado...</p>
+      {:else if attemptSaveError}
+        <p class="attempt-save-note error">{attemptSaveError}</p>
+      {/if}
+
       <div class="victory-actions">
         <button class="action-btn primary" onclick={handleRestart}>
           Jogar Novamente
@@ -398,6 +541,12 @@
           <span class="stat-card-label">Respondidas</span>
         </div>
       </div>
+
+      {#if attemptSaving}
+        <p class="attempt-save-note">Salvando seu resultado...</p>
+      {:else if attemptSaveError}
+        <p class="attempt-save-note error">{attemptSaveError}</p>
+      {/if}
 
       <div class="victory-actions">
         <button class="action-btn primary" onclick={handleRestart}>
@@ -450,6 +599,19 @@
   .top-bar {
     display: flex;
     justify-content: flex-start;
+  }
+
+  .runtime-notice {
+    margin: 0.75rem auto 0;
+    max-width: 560px;
+    padding: 0.8rem 0.95rem;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.42);
+    color: var(--color-text);
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: center;
   }
 
   .back-btn {
@@ -854,6 +1016,17 @@
     line-height: 1.5;
     white-space: pre-wrap;
     text-align: left;
+  }
+
+  .attempt-save-note {
+    max-width: 520px;
+    color: var(--color-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .attempt-save-note.error {
+    color: #fecaca;
   }
 
 </style>

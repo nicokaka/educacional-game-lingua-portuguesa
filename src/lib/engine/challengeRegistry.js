@@ -53,6 +53,60 @@ const validators = {
   },
 };
 
+function hasPromptText(challenge) {
+  return Boolean(challenge?.prompt?.trim?.());
+}
+
+function hasValidOptions(options) {
+  return Array.isArray(options) &&
+    options.length >= 2 &&
+    options.every((option) => Boolean(option?.text?.trim?.()) && Boolean(option?.id));
+}
+
+function hasValidTrueFalseContent(challenge) {
+  if (Array.isArray(challenge?.statements) && challenge.statements.length > 0) {
+    return challenge.statements.every(
+      (statement) => Boolean(statement?.text?.trim?.()) && typeof statement?.correctAnswer === 'boolean'
+    );
+  }
+
+  return hasPromptText(challenge) && typeof challenge?.correctAnswer === 'boolean';
+}
+
+function hasValidOrderingContent(challenge) {
+  return hasPromptText(challenge) &&
+    Array.isArray(challenge?.fragments) &&
+    challenge.fragments.length >= 2 &&
+    Array.isArray(challenge?.displayFragments) &&
+    challenge.displayFragments.length === challenge.fragments.length;
+}
+
+const runtimeInspectors = {
+  drag_drop: (challenge) => {
+    if (!hasPromptText(challenge)) return 'drag_drop_missing_prompt';
+    if (!Array.isArray(challenge?.loot) || challenge.loot.length === 0) return 'drag_drop_missing_loot';
+    if (!challenge?.correctAnswer?.trim?.()) return 'drag_drop_missing_correct_answer';
+    return null;
+  },
+  multiple_choice: (challenge) => {
+    if (!hasPromptText(challenge)) return 'multiple_choice_missing_prompt';
+    if (!hasValidOptions(challenge?.options)) return 'multiple_choice_invalid_options';
+    return null;
+  },
+  true_false: (challenge) => {
+    if (!hasValidTrueFalseContent(challenge)) return 'true_false_invalid_content';
+    return null;
+  },
+  ordering: (challenge) => {
+    if (!hasValidOrderingContent(challenge)) return 'ordering_invalid_content';
+    return null;
+  },
+  open_text: (challenge) => {
+    if (!hasPromptText(challenge)) return 'open_text_missing_prompt';
+    return null;
+  },
+};
+
 /**
  * @param {string} type
  * @returns {import('svelte').Component | undefined}
@@ -74,4 +128,13 @@ export function getValidator(type) {
  */
 export function getSupportedTypes() {
   return Object.keys(renderers);
+}
+
+export function getChallengeRuntimeIssue(challenge) {
+  if (!challenge?.type) return 'missing_type';
+
+  const inspect = runtimeInspectors[challenge.type];
+  if (!inspect) return `unsupported_type:${challenge.type}`;
+
+  return inspect(challenge);
 }

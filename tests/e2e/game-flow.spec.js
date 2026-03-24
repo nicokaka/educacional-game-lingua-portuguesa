@@ -141,12 +141,13 @@ test('entra no modulo sem loading infinito e avanca para a segunda pergunta', as
   await expect(page.getByText('Carregando desafios...')).toHaveCount(0);
 
   const promptBefore = await getVisiblePrompt(page);
+  expect(promptBefore).toBe('Primeira pergunta');
   await answerCurrentQuestionCorrectly(page);
 
   await expect(page.getByText('2/3')).toBeVisible({ timeout: 5000 });
   const promptAfter = await getVisiblePrompt(page);
 
-  expect(promptAfter).not.toBe(promptBefore);
+  expect(promptAfter).toBe('Pergunta sem ids nas alternativas');
 });
 
 test('consegue renderizar e responder multiple choice mesmo quando o Supabase nao envia ids nas opcoes', async ({ page }) => {
@@ -168,4 +169,98 @@ test('consegue renderizar e responder multiple choice mesmo quando o Supabase na
     const promptAfter = await getVisiblePrompt(page);
     expect(promptAfter).not.toBe('Pergunta sem ids nas alternativas');
   }
+});
+
+test('salva module_attempts imediatamente ao acertar a ultima pergunta', async ({ page }) => {
+  let postCount = 0;
+
+  await page.route('**/rest/v1/module_attempts*', async (route, request) => {
+    if (request.method() === 'POST') {
+      postCount++;
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: `attempt-${postCount}` }]),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    });
+  });
+
+  await startPlaySession(page);
+
+  while ((await getVisiblePrompt(page)) !== 'Segunda pergunta') {
+    await answerCurrentQuestionCorrectly(page);
+  }
+
+  const attemptRequest = page.waitForRequest(
+    (request) => request.url().includes('/rest/v1/module_attempts') && request.method() === 'POST',
+    { timeout: 500 }
+  );
+
+  await page.getByRole('button', { name: 'Falso' }).click();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+
+  await attemptRequest;
+  await expect(page.getByText('Parabens!')).toBeVisible();
+  expect(postCount).toBe(1);
+});
+
+test('mostra aviso visual e tenta salvar novamente ao sair apos falha no POST', async ({ page }) => {
+  let postCount = 0;
+
+  await page.route('**/rest/v1/module_attempts*', async (route, request) => {
+    if (request.method() === 'POST') {
+      postCount++;
+
+      if (postCount === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'temporary failure' }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: `attempt-${postCount}` }]),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
+    });
+  });
+
+  await startPlaySession(page);
+
+  while (true) {
+    const prompt = await getVisiblePrompt(page);
+
+    if (prompt === 'Segunda pergunta') {
+      await page.getByRole('button', { name: 'Falso' }).click();
+      await page.getByRole('button', { name: 'Confirmar' }).click();
+      break;
+    }
+
+    await answerCurrentQuestionCorrectly(page);
+  }
+
+  await expect(page.getByText('Parabens!')).toBeVisible();
+  await expect(page.getByText('Nao foi possivel salvar seu resultado agora. Vamos tentar novamente quando voce sair desta tela.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Escolher Outro Modulo' }).click();
+
+  await expect(page).toHaveURL(/#\/$/);
+  expect(postCount).toBe(2);
 });

@@ -1,13 +1,13 @@
 <script>
   import { navigate } from '../../router.svelte.js';
   import { fetchModules } from '../../supabase/modules.js';
-  import { clearModuleLeaderboard, fetchModuleLeaderboard, MODULE_LEADERBOARD_WINDOW_HOURS } from '../../supabase/attempts.js';
+  import { fetchModuleLeaderboard, MODULE_LEADERBOARD_WINDOW_HOURS } from '../../supabase/attempts.js';
   import { fetchActiveClassrooms } from '../../supabase/classrooms.js';
 
   const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
   const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
   const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
-  const PROFESSOR_PASSWORD = import.meta.env.VITE_PROFESSOR_PASSWORD || 'prof2026';
+  const ALL_CLASSROOMS_VALUE = '__all__';
 
   let modules = $state([]);
   let classrooms = $state([]);
@@ -28,15 +28,13 @@
   let leaderboardError = $state('');
   let leaderboardModule = $state(null);
   let pendingLeaderboardModule = $state(null);
+  let leaderboardPeriod = $state('today');
+  let leaderboardClassroomId = $state('');
   let leaderboardClassroomName = $state('');
   let leaderboardStudentName = $state('');
+  let leaderboardAttemptCount = $state(0);
   let leaderboardTop3 = $state([]);
   let currentStudentLeaderboard = $state(null);
-  let showResetLeaderboardPrompt = $state(false);
-  let resetLeaderboardPassword = $state('');
-  let resetLeaderboardError = $state('');
-  let resetLeaderboardSuccess = $state('');
-  let resettingLeaderboard = $state(false);
   const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Nicolas Oliveira';
   const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Sergio Claudino';
 
@@ -101,9 +99,9 @@
     studentModalMode = mode;
     studentName = getSavedStudentName();
     const savedClassroomId = getSavedClassroomId();
-    selectedClassroomId = classrooms.some((classroom) => classroom.id === savedClassroomId)
-      ? savedClassroomId
-      : classrooms[0]?.id || '';
+    selectedClassroomId = mode === 'leaderboard'
+      ? (leaderboardClassroomId || (classrooms.some((classroom) => classroom.id === savedClassroomId) ? savedClassroomId : ALL_CLASSROOMS_VALUE))
+      : (classrooms.some((classroom) => classroom.id === savedClassroomId) ? savedClassroomId : classrooms[0]?.id || '');
     studentNameError = '';
     showStudentModal = true;
   }
@@ -136,6 +134,7 @@
     const trimmedName = studentName.trim();
     const selectedClassroom = classrooms.find((classroom) => classroom.id === selectedClassroomId);
     const modalMode = studentModalMode;
+    const useAllClassrooms = modalMode === 'leaderboard' && selectedClassroomId === ALL_CLASSROOMS_VALUE;
 
     if (classroomsError) {
       studentNameError = classroomsError;
@@ -147,7 +146,7 @@
       return;
     }
 
-    if (!selectedClassroom) {
+    if (!useAllClassrooms && !selectedClassroom) {
       studentNameError = 'Escolha sua turma para continuar.';
       return;
     }
@@ -158,8 +157,10 @@
     }
 
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
-      window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
+      if (!useAllClassrooms && selectedClassroom) {
+        window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
+        window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
+      }
 
       if (trimmedName) {
         window.sessionStorage.setItem(STUDENT_NAME_KEY, trimmedName);
@@ -177,7 +178,12 @@
     }
 
     if (modalMode === 'leaderboard' && leaderboardToOpen) {
-      void loadLeaderboard(leaderboardToOpen);
+      void loadLeaderboard(leaderboardToOpen, {
+        classroomId: useAllClassrooms ? '' : selectedClassroom?.id || '',
+        classroomName: useAllClassrooms ? 'Todas as turmas' : selectedClassroom?.name || '',
+        studentName: trimmedName,
+        period: 'today',
+      });
       return;
     }
 
@@ -188,25 +194,32 @@
     navigate('/editor');
   }
 
-  async function loadLeaderboard(moduleData) {
+  async function loadLeaderboard(moduleData, filter = {}) {
     showLeaderboardModal = true;
     leaderboardLoading = true;
     leaderboardError = '';
     leaderboardModule = moduleData;
-    leaderboardClassroomName = getSavedClassroomName().trim();
-    leaderboardStudentName = getSavedStudentName().trim();
+    leaderboardPeriod = filter?.period === '12h' ? '12h' : 'today';
+    leaderboardClassroomId = filter?.classroomId ?? getSavedClassroomId().trim();
+    leaderboardClassroomName = filter?.classroomName ?? (getSavedClassroomName().trim() || 'Todas as turmas');
+    leaderboardStudentName = filter?.studentName ?? getSavedStudentName().trim();
+    leaderboardAttemptCount = 0;
     leaderboardTop3 = [];
     currentStudentLeaderboard = null;
-    showResetLeaderboardPrompt = false;
-    resetLeaderboardPassword = '';
-    resetLeaderboardError = '';
-    resetLeaderboardSuccess = '';
 
     try {
-    const studentName = getSavedStudentName().trim();
-    const classroomId = getSavedClassroomId().trim();
-    const result = await fetchModuleLeaderboard(moduleData.id, studentName, classroomId);
+      const viewerClassroomId = leaderboardClassroomId || getSavedClassroomId().trim();
+      const result = await fetchModuleLeaderboard(
+        moduleData.id,
+        leaderboardStudentName,
+        viewerClassroomId,
+        {
+          period: leaderboardPeriod,
+          filterClassroomId: leaderboardClassroomId,
+        }
+      );
       leaderboardTop3 = result.top3;
+      leaderboardAttemptCount = result.attemptCount || 0;
       currentStudentLeaderboard = result.currentStudent;
     } catch (error) {
       leaderboardError = error.message;
@@ -217,6 +230,8 @@
 
   async function openLeaderboard(moduleData) {
     const classroomId = getSavedClassroomId().trim();
+    const classroomName = getSavedClassroomName().trim();
+    const studentName = getSavedStudentName().trim();
 
     if (!classroomId) {
       pendingLeaderboardModule = moduleData;
@@ -224,7 +239,12 @@
       return;
     }
 
-    await loadLeaderboard(moduleData);
+    await loadLeaderboard(moduleData, {
+      classroomId,
+      classroomName,
+      studentName,
+      period: 'today',
+    });
   }
 
   function closeLeaderboard() {
@@ -232,20 +252,23 @@
     leaderboardLoading = false;
     leaderboardError = '';
     leaderboardModule = null;
+    leaderboardPeriod = 'today';
+    leaderboardClassroomId = '';
     leaderboardClassroomName = '';
     leaderboardStudentName = '';
+    leaderboardAttemptCount = 0;
     leaderboardTop3 = [];
     currentStudentLeaderboard = null;
-    showResetLeaderboardPrompt = false;
-    resetLeaderboardPassword = '';
-    resetLeaderboardError = '';
-    resetLeaderboardSuccess = '';
-    resettingLeaderboard = false;
   }
 
   function retryLeaderboard() {
     if (!leaderboardModule) return;
-    openLeaderboard(leaderboardModule);
+    loadLeaderboard(leaderboardModule, {
+      classroomId: leaderboardClassroomId,
+      classroomName: leaderboardClassroomName,
+      studentName: leaderboardStudentName,
+      period: leaderboardPeriod,
+    });
   }
 
   function reopenLeaderboardStudentModal() {
@@ -254,50 +277,6 @@
     closeLeaderboard();
     pendingLeaderboardModule = currentModule;
     openStudentModal('', 'leaderboard');
-  }
-
-  function openResetLeaderboardPrompt() {
-    showResetLeaderboardPrompt = true;
-    resetLeaderboardPassword = '';
-    resetLeaderboardError = '';
-    resetLeaderboardSuccess = '';
-  }
-
-  function cancelResetLeaderboardPrompt() {
-    showResetLeaderboardPrompt = false;
-    resetLeaderboardPassword = '';
-    resetLeaderboardError = '';
-  }
-
-  async function confirmResetLeaderboard() {
-    if (!leaderboardModule || resettingLeaderboard) return;
-
-    if (resetLeaderboardPassword !== PROFESSOR_PASSWORD) {
-      resetLeaderboardError = 'Senha do professor incorreta.';
-      return;
-    }
-
-    resettingLeaderboard = true;
-    resetLeaderboardError = '';
-    resetLeaderboardSuccess = '';
-
-    try {
-      const classroomId = getSavedClassroomId().trim();
-      const { deletedCount } = await clearModuleLeaderboard(leaderboardModule.id, classroomId);
-      resetLeaderboardSuccess = deletedCount > 0
-        ? 'Placar zerado com sucesso.'
-        : 'Nao havia tentativas recentes para remover.';
-      showResetLeaderboardPrompt = false;
-      resetLeaderboardPassword = '';
-      await openLeaderboard(leaderboardModule);
-      resetLeaderboardSuccess = deletedCount > 0
-        ? 'Placar zerado com sucesso.'
-        : 'Nao havia tentativas recentes para remover.';
-    } catch (error) {
-      resetLeaderboardError = error?.message || 'Nao foi possivel zerar o placar.';
-    } finally {
-      resettingLeaderboard = false;
-    }
   }
 
   function openHelp(section = 'instructions') {
@@ -311,6 +290,10 @@
 
   function getAttemptStatusLabel(completed) {
     return completed ? 'Concluiu' : 'Nao concluiu';
+  }
+
+  function getLeaderboardPeriodLabel(period) {
+    return period === 'today' ? 'Hoje' : `Ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS}h`;
   }
 
   function handleWindowKeydown(event) {
@@ -487,7 +470,7 @@
           {studentModalMode === 'reviews'
             ? 'Ver minhas correções'
             : studentModalMode === 'leaderboard'
-              ? 'Ver placar da turma'
+              ? 'Ver placar recente'
               : 'Antes de jogar'}
         </h2>
           <button type="button" class="help-close" onclick={closeStudentModal} aria-label="Fechar">x</button>
@@ -497,16 +480,9 @@
           {studentModalMode === 'reviews'
             ? 'Digite seu nome para consultar suas respostas abertas corrigidas.'
             : studentModalMode === 'leaderboard'
-              ? 'Escolha sua turma para ver o placar da aula. Se quiser destacar sua posicao, digite seu nome.'
+              ? 'Escolha a turma. O nome e opcional.'
               : 'Digite seu nome para entrar no modulo.'}
         </p>
-
-        {#if studentModalMode === 'leaderboard'}
-          <div class="student-tip-card">
-            <span class="student-tip-badge">Placar</span>
-            <p>Voce pode entrar sem nome para ver a classificacao completa da turma. O nome serve apenas para destacar sua posicao.</p>
-          </div>
-        {/if}
 
         <div class="student-field">
           <label class="field-label" for="student-classroom-select">Turma</label>
@@ -516,6 +492,9 @@
             bind:value={selectedClassroomId}
             disabled={classrooms.length === 0}
           >
+            {#if studentModalMode === 'leaderboard'}
+              <option value={ALL_CLASSROOMS_VALUE}>Todas as turmas</option>
+            {/if}
             <option value="" disabled selected={selectedClassroomId === ''}>Selecione sua turma</option>
             {#each classrooms as classroom (classroom.id)}
               <option value={classroom.id}>{classroom.name}</option>
@@ -540,9 +519,6 @@
             placeholder="Ex.: Maria Souza"
             maxlength="80"
           />
-          {#if studentModalMode === 'leaderboard'}
-            <p class="student-helper">Se preferir, deixe este campo vazio e veja apenas o ranking da turma.</p>
-          {/if}
         </div>
 
         {#if studentNameError}
@@ -577,46 +553,24 @@
       onmousedown={stopMouseDown}
     >
       <div class="help-header">
-        <h2 class="help-title">{leaderboardClassroomName ? '🏆 Placar da turma' : '🏆 Placar'}</h2>
+        <h2 class="help-title">🏆 Placar recente</h2>
         <button type="button" class="help-close" onclick={closeLeaderboard} aria-label="Fechar">x</button>
       </div>
 
       {#if leaderboardModule}
         <div class="leaderboard-intro">
           <p class="leaderboard-module-title">{leaderboardModule.title}</p>
-          <p class="empty-hint">
-            {leaderboardClassroomName
-              ? 'Classificacao da sua turma nesta aula.'
-              : 'Classificacao recente deste modulo.'}
-          </p>
-          <div class="leaderboard-filter-card">
-            <div class="leaderboard-filter-copy">
-              <span class="leaderboard-filter-label">Filtro ativo</span>
-              <strong>{leaderboardClassroomName || 'Todas as turmas recentes'}</strong>
-              <span>
-                {leaderboardStudentName
-                  ? `Posicao destacada para ${leaderboardStudentName}.`
-                  : 'Sem nome informado: mostrando a classificacao completa da turma.'}
-              </span>
-            </div>
+          <div class="leaderboard-summary-row">
+            <p class="leaderboard-summary-line">
+              {getLeaderboardPeriodLabel(leaderboardPeriod)} • {leaderboardClassroomName || 'Todas as turmas'} • {leaderboardAttemptCount} {leaderboardAttemptCount === 1 ? 'tentativa' : 'tentativas'}
+            </p>
             <button
               type="button"
               class="leaderboard-filter-btn"
               onclick={reopenLeaderboardStudentModal}
             >
-              Ajustar filtro
+              Trocar filtro
             </button>
-          </div>
-          <div class="leaderboard-context">
-            <span class="leaderboard-chip">Ultimas {MODULE_LEADERBOARD_WINDOW_HOURS}h</span>
-            {#if leaderboardClassroomName}
-              <span class="leaderboard-chip classroom">{leaderboardClassroomName}</span>
-            {/if}
-            {#if leaderboardStudentName}
-              <span class="leaderboard-chip viewer">{leaderboardStudentName}</span>
-            {:else}
-              <span class="leaderboard-chip viewer empty">Sem nome</span>
-            {/if}
           </div>
         </div>
       {/if}
@@ -629,17 +583,21 @@
       {:else if leaderboardError}
         <div class="error-state leaderboard-state">
           <p class="error-text">⚠️ {leaderboardError}</p>
-          <p class="empty-hint">Nao foi possivel atualizar o placar desta turma agora.</p>
+          <p class="empty-hint">Nao foi possivel atualizar este placar agora. Tente novamente ou troque o filtro.</p>
           <button type="button" class="retry-btn" onclick={retryLeaderboard}>Tentar novamente</button>
         </div>
       {:else if leaderboardTop3.length === 0}
         <div class="empty-state leaderboard-state">
-          <p class="empty-text">Ainda nao ha pontuacoes para este placar.</p>
+          <p class="empty-text">Nenhuma tentativa encontrada para este placar.</p>
           <p class="empty-hint">
-            {leaderboardClassroomName
-              ? `A turma ${leaderboardClassroomName} ainda nao registrou tentativas nas ultimas 12 horas.`
-              : `Ainda nao ha tentativas registradas nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
+            {leaderboardClassroomId
+              ? `Nenhuma tentativa encontrada para esta turma ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
+              : `Nenhuma tentativa encontrada neste modulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
           </p>
+          {#if leaderboardClassroomId}
+            <p class="empty-hint">Tente trocar para "Todas as turmas".</p>
+          {/if}
+          <button type="button" class="leaderboard-filter-btn" onclick={reopenLeaderboardStudentModal}>Trocar filtro</button>
         </div>
       {:else}
         <div class="leaderboard-list">
@@ -665,96 +623,38 @@
         </div>
       {/if}
 
-      <div class="leaderboard-divider"></div>
+      {#if leaderboardStudentName}
+        <div class="leaderboard-divider"></div>
 
-      <h3 class="help-subtitle">Sua posição</h3>
-      {#if currentStudentLeaderboard}
-        <div class="leaderboard-entry current-student">
-          <div class="leaderboard-rank">
-            <span class="leaderboard-rank-badge">📍</span>
-            <span>#{currentStudentLeaderboard.rank}</span>
-          </div>
-          <div class="leaderboard-main">
-            <div class="leaderboard-name">{currentStudentLeaderboard.student_name}</div>
-            {#if currentStudentLeaderboard.classroom_name}
-              <div class="leaderboard-classroom">{currentStudentLeaderboard.classroom_name}</div>
-            {/if}
-            <div class="leaderboard-meta">
-              <span class="leaderboard-stat strong">{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
-              <span class="leaderboard-stat">{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score} pontos</span>
-              <span class="leaderboard-stat">{getAttemptStatusLabel(currentStudentLeaderboard.completed)}</span>
+        <h3 class="help-subtitle">Sua posição</h3>
+        {#if currentStudentLeaderboard}
+          <div class="leaderboard-entry current-student">
+            <div class="leaderboard-rank">
+              <span class="leaderboard-rank-badge">📍</span>
+              <span>#{currentStudentLeaderboard.rank}</span>
+            </div>
+            <div class="leaderboard-main">
+              <div class="leaderboard-name">{currentStudentLeaderboard.student_name}</div>
+              {#if currentStudentLeaderboard.classroom_name}
+                <div class="leaderboard-classroom">{currentStudentLeaderboard.classroom_name}</div>
+              {/if}
+              <div class="leaderboard-meta">
+                <span class="leaderboard-stat strong">{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
+                <span class="leaderboard-stat">{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score} pontos</span>
+                <span class="leaderboard-stat">{getAttemptStatusLabel(currentStudentLeaderboard.completed)}</span>
+              </div>
             </div>
           </div>
-        </div>
-      {:else}
-        <div class="leaderboard-empty-card">
-          <p class="empty-hint">
-            {!leaderboardStudentName
-              ? 'Digite seu nome para destacar sua posicao no ranking.'
-              : leaderboardClassroomName
-              ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} nas ultimas 12 horas.`
-              : `Voce ainda nao tem tentativa registrada neste modulo nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
-          </p>
-          <button
-            type="button"
-            class="leaderboard-inline-link"
-            onclick={reopenLeaderboardStudentModal}
-          >
-            {leaderboardStudentName ? 'Trocar turma ou nome' : 'Informar nome ou trocar turma'}
-          </button>
-        </div>
-      {/if}
-
-      <div class="leaderboard-divider"></div>
-
-      <div class="leaderboard-reset">
-        <button
-          type="button"
-          class="student-btn secondary leaderboard-reset-trigger"
-          onclick={openResetLeaderboardPrompt}
-          disabled={leaderboardLoading || resettingLeaderboard}
-        >
-          Zerar placar
-        </button>
-
-        {#if showResetLeaderboardPrompt}
-          <div class="leaderboard-reset-card">
-            <label class="field-label" for="leaderboard-reset-password">Senha do professor</label>
-            <input
-              id="leaderboard-reset-password"
-              type="password"
-              class="student-input"
-              bind:value={resetLeaderboardPassword}
-              placeholder="Digite a senha do professor"
-            />
-
-            {#if resetLeaderboardError}
-              <p class="student-error">{resetLeaderboardError}</p>
-            {/if}
-
-            <div class="student-actions leaderboard-reset-actions">
-              <button
-                type="button"
-                class="student-btn secondary"
-                onclick={cancelResetLeaderboardPrompt}
-                disabled={resettingLeaderboard}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                class="student-btn primary"
-                onclick={confirmResetLeaderboard}
-                disabled={resettingLeaderboard}
-              >
-                {resettingLeaderboard ? 'Zerando...' : 'Confirmar'}
-              </button>
-            </div>
+        {:else}
+          <div class="leaderboard-empty-card">
+            <p class="empty-hint">
+              {leaderboardClassroomId
+                ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
+                : `Voce ainda nao tem tentativa registrada neste modulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
+            </p>
           </div>
-        {:else if resetLeaderboardSuccess}
-          <p class="leaderboard-reset-success">{resetLeaderboardSuccess}</p>
         {/if}
-      </div>
+      {/if}
     </div>
   </div>
 {/if}
@@ -1151,86 +1051,27 @@
     margin-bottom: 0.95rem;
   }
 
-  .leaderboard-filter-card {
+  .leaderboard-summary-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.9rem;
-    padding: 0.85rem 0.9rem;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.32);
-  }
-
-  .leaderboard-filter-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 0.18rem;
-    min-width: 0;
-  }
-
-  .leaderboard-filter-copy strong {
-    color: var(--color-text);
-    font-size: 0.98rem;
-    line-height: 1.4;
-    word-break: break-word;
-  }
-
-  .leaderboard-filter-copy span:last-child {
-    color: var(--color-muted);
-    font-size: 0.8rem;
-    line-height: 1.45;
-  }
-
-  .leaderboard-filter-label {
-    color: #cbd5e1;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .leaderboard-context {
-    display: flex;
     flex-wrap: wrap;
-    gap: 0.45rem;
+    gap: 0.65rem;
   }
 
-  .leaderboard-chip {
-    border-radius: 999px;
-    border: 1px solid rgba(250, 204, 21, 0.28);
-    background: rgba(250, 204, 21, 0.1);
-    color: #fde68a;
-    padding: 0.28rem 0.62rem;
-    font-size: 0.76rem;
-    font-weight: 700;
-  }
-
-  .leaderboard-chip.classroom {
-    border-color: rgba(56, 189, 248, 0.28);
-    background: rgba(56, 189, 248, 0.1);
-    color: #dbeafe;
-  }
-
-  .leaderboard-chip.viewer {
-    border-color: rgba(139, 92, 246, 0.32);
-    background: rgba(139, 92, 246, 0.12);
-    color: #efe8ff;
-  }
-
-  .leaderboard-chip.viewer.empty {
-    border-color: rgba(148, 163, 184, 0.24);
-    background: rgba(148, 163, 184, 0.08);
-    color: #cbd5e1;
+  .leaderboard-summary-line {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
   }
 
   .leaderboard-filter-btn {
     border-radius: 999px;
     border: 1px solid rgba(148, 163, 184, 0.24);
-    background: linear-gradient(180deg, rgba(59, 130, 246, 0.14), rgba(15, 23, 42, 0.4));
-    color: var(--color-text);
-    padding: 0.55rem 0.88rem;
-    font-size: 0.78rem;
+    background: transparent;
+    color: var(--color-muted);
+    padding: 0.38rem 0.7rem;
+    font-size: 0.76rem;
     font-weight: 700;
     transition: all var(--transition-fast);
     white-space: nowrap;
@@ -1238,8 +1079,8 @@
 
   .leaderboard-filter-btn:hover {
     transform: translateY(-1px);
-    border-color: rgba(56, 189, 248, 0.42);
-    color: #dbeafe;
+    border-color: rgba(148, 163, 184, 0.42);
+    color: var(--color-text);
   }
 
   .leaderboard-state {
@@ -1353,90 +1194,11 @@
     background: rgba(15, 23, 42, 0.3);
   }
 
-  .leaderboard-inline-link {
-    align-self: flex-start;
-    border: 1px solid rgba(56, 189, 248, 0.28);
-    border-radius: 999px;
-    background: rgba(56, 189, 248, 0.1);
-    color: #dbeafe;
-    padding: 0.42rem 0.78rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    transition: all var(--transition-fast);
-  }
-
-  .leaderboard-inline-link:hover {
-    transform: translateY(-1px);
-    border-color: rgba(56, 189, 248, 0.42);
-    background: rgba(56, 189, 248, 0.16);
-  }
-
-  .leaderboard-reset {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.4rem;
-  }
-
-  .leaderboard-reset-trigger {
-    align-self: flex-start;
-  }
-
-  .leaderboard-reset-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-    padding: 0.85rem;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.32);
-  }
-
-  .leaderboard-reset-actions {
-    margin-top: 0.2rem;
-  }
-
-  .leaderboard-reset-success {
-    font-size: 0.84rem;
-    color: #bbf7d0;
-    line-height: 1.45;
-  }
-
   .student-copy {
     font-size: 0.92rem;
     color: var(--color-muted);
     line-height: 1.45;
     margin-bottom: 0.9rem;
-  }
-
-  .student-tip-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.32rem;
-    margin-bottom: 0.95rem;
-    padding: 0.8rem 0.9rem;
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 16px;
-    background: linear-gradient(180deg, rgba(56, 189, 248, 0.1), rgba(15, 23, 42, 0.22));
-  }
-
-  .student-tip-card p {
-    color: #dbeafe;
-    font-size: 0.84rem;
-    line-height: 1.5;
-  }
-
-  .student-tip-badge {
-    width: fit-content;
-    border-radius: 999px;
-    padding: 0.24rem 0.58rem;
-    border: 1px solid rgba(56, 189, 248, 0.28);
-    background: rgba(15, 23, 42, 0.4);
-    color: #dbeafe;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
   }
 
   .student-field {
@@ -1614,13 +1376,12 @@
       padding: 0.85rem 0.82rem 0.78rem;
     }
 
-    .leaderboard-filter-card {
-      flex-direction: column;
+    .leaderboard-summary-row {
       align-items: stretch;
+      flex-direction: column;
     }
 
-    .leaderboard-filter-btn,
-    .leaderboard-inline-link {
+    .leaderboard-filter-btn {
       width: 100%;
       justify-content: center;
       text-align: center;
