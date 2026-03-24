@@ -1,5 +1,26 @@
 import { test, expect } from '@playwright/test';
 
+function getEqParam(url, key) {
+  const raw = url.searchParams.get(key) || '';
+  return raw.startsWith('eq.') ? raw.slice(3) : '';
+}
+
+async function startPlaySession(page, moduleId) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.sessionStorage.setItem('alquimia-verbal:classroom-id', 'class-test');
+    window.sessionStorage.setItem('alquimia-verbal:classroom-name', 'Turma Teste');
+    window.sessionStorage.setItem('alquimia-verbal:student-name', 'Aluno Teste');
+  });
+  await page.goto(`/#/play/${moduleId}`);
+}
+
+async function loginToEditor(page) {
+  await page.goto('/#/editor');
+  await page.getByPlaceholder('Senha').fill('prof2026');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+}
+
 function createModuleRoutes(page, { moduleId, title, author, challenges }) {
   const modulesListResponse = [
     {
@@ -7,6 +28,7 @@ function createModuleRoutes(page, { moduleId, title, author, challenges }) {
       title,
       author,
       created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
       challenges: [{ count: challenges.length }],
     },
   ];
@@ -16,6 +38,7 @@ function createModuleRoutes(page, { moduleId, title, author, challenges }) {
     title,
     author,
     created_at: '2026-03-14T00:00:00.000Z',
+    updated_at: '2026-03-14T00:00:00.000Z',
   };
 
   return Promise.all([
@@ -171,8 +194,7 @@ test('completa modulo com 4 tipos de desafio e chega na vitoria', async ({ page 
     challenges,
   });
 
-  await page.goto('/');
-  await page.getByRole('button', { name: /Modulo Fluxo Completo/i }).click();
+  await startPlaySession(page, moduleId);
 
   for (let step = 0; step < 4; step++) {
     await answerCurrentChallengeCorrectly(page);
@@ -221,8 +243,7 @@ test('resposta errada aumenta hp do monstro apos ele tomar dano', async ({ page 
     challenges,
   });
 
-  await page.goto('/');
-  await page.getByRole('button', { name: /Modulo Erro/i }).click();
+  await startPlaySession(page, moduleId);
 
   const firstStatementText = await page.locator('.statement-text').first().innerText();
   const firstCorrectIsTrue = firstStatementText.includes('verdadeira');
@@ -268,8 +289,7 @@ test('entra em game over apos sequencia de erros', async ({ page }) => {
     challenges,
   });
 
-  await page.goto('/');
-  await page.getByRole('button', { name: /Modulo Derrota/i }).click();
+  await startPlaySession(page, moduleId);
 
   for (let attempt = 0; attempt < 8; attempt++) {
     if (await page.getByRole('heading', { name: 'Quase la!' }).isVisible()) break;
@@ -294,6 +314,7 @@ test('edita modulo existente e persiste no backend', async ({ page }) => {
       title: 'Modulo Original',
       author: 'Profa',
       created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
       challenges: [{ count: 1 }],
     },
   ];
@@ -302,8 +323,9 @@ test('edita modulo existente e persiste no backend', async ({ page }) => {
     title: 'Modulo Original',
     author: 'Profa',
     created_at: '2026-03-14T00:00:00.000Z',
+    updated_at: '2026-03-14T00:00:00.000Z',
   };
-  const challengesResponse = [
+  let challengesResponse = [
     {
       id: 'challenge-edit-1',
       module_id: moduleId,
@@ -324,6 +346,7 @@ test('edita modulo existente e persiste no backend', async ({ page }) => {
   let updatePayload = null;
   let deleteCallCount = 0;
   let insertedChallengesPayload = null;
+  let updatedChallengeRequests = [];
 
   await page.route('**/rest/v1/modules*', async (route, request) => {
     const method = request.method();
@@ -359,12 +382,28 @@ test('edita modulo existente e persiste no backend', async ({ page }) => {
 
   await page.route('**/rest/v1/challenges*', async (route, request) => {
     const method = request.method();
+    const url = new URL(request.url());
 
     if (method === 'GET') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(challengesResponse),
+      });
+      return;
+    }
+
+    if (method === 'PATCH') {
+      const challengeId = getEqParam(url, 'id');
+      const payload = request.postDataJSON();
+      updatedChallengeRequests.push({ challengeId, payload });
+      challengesResponse = challengesResponse.map((row) =>
+        row.id === challengeId ? { ...row, ...payload } : row
+      );
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
       });
       return;
     }
@@ -392,9 +431,7 @@ test('edita modulo existente e persiste no backend', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
   });
 
-  await page.goto('/#/editor');
-  await page.getByPlaceholder('Senha').fill('prof2026');
-  await page.getByRole('button', { name: 'Entrar' }).click();
+  await loginToEditor(page);
 
   await expect(page.getByText('Modulo Original')).toBeVisible();
   await page.getByRole('button', { name: /Editar/i }).click();
@@ -406,7 +443,294 @@ test('edita modulo existente e persiste no backend', async ({ page }) => {
   await expect(page.getByText('✅ Salvo!')).toBeVisible();
 
   expect(updatePayload).toEqual({ title: 'Modulo Editado', author: 'Profa' });
-  expect(deleteCallCount).toBe(1);
-  expect(Array.isArray(insertedChallengesPayload)).toBe(true);
-  expect(insertedChallengesPayload[0].prompt).toBe('Pergunta editada');
+  expect(deleteCallCount).toBe(0);
+  expect(insertedChallengesPayload).toBeNull();
+  expect(updatedChallengeRequests).toEqual([
+    {
+      challengeId: 'challenge-edit-1',
+      payload: {
+        module_id: moduleId,
+        type: 'multiple_choice',
+        prompt: 'Pergunta editada',
+        difficulty: 1,
+        data: {
+          monster: { name: 'Monstro de Teste', sprite: 'monster_01' },
+          options: [
+            { id: 'a', text: 'Errada', correct: false, feedback: '' },
+            { id: 'b', text: 'Certa', correct: true, feedback: '' },
+          ],
+        },
+        sort_order: 1,
+      },
+    },
+  ]);
+});
+
+test('mantem challenge_id valido para open_text apos editar modulo sem recriar a linha', async ({ page, context }) => {
+  const moduleId = 'module-open-text-stable';
+  const moduleRow = {
+    id: moduleId,
+    title: 'Modulo Aberto',
+    author: 'Profa',
+    created_at: '2026-03-14T00:00:00.000Z',
+    updated_at: '2026-03-14T00:00:00.000Z',
+  };
+  const modulesListResponse = [{ ...moduleRow, challenges: [{ count: 1 }] }];
+  let challengeRows = [
+    {
+      id: 'challenge-open-text-1',
+      module_id: moduleId,
+      type: 'open_text',
+      prompt: 'Escreva uma frase com sujeito simples.',
+      difficulty: 1,
+      sort_order: 1,
+      data: {
+        monster: { name: 'Monstro de Teste', sprite: 'monster_01' },
+      },
+    },
+  ];
+
+  const validChallengeIds = new Set(challengeRows.map((row) => row.id));
+  const submittedChallengeIds = [];
+
+  await context.route('**/rest/v1/modules*', async (route, request) => {
+    const method = request.method();
+    const url = new URL(request.url());
+
+    if (method === 'GET') {
+      const acceptHeader = request.headers().accept || '';
+      const isSingle = acceptHeader.includes('application/vnd.pgrst.object+json') || url.searchParams.has('id');
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(isSingle ? moduleRow : modulesListResponse),
+      });
+      return;
+    }
+
+    if (method === 'PATCH') {
+      const payload = request.postDataJSON();
+      moduleRow.title = payload.title;
+      moduleRow.author = payload.author;
+      modulesListResponse[0].title = payload.title;
+      modulesListResponse[0].author = payload.author;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+  });
+
+  await context.route('**/rest/v1/challenges*', async (route, request) => {
+    const method = request.method();
+    const url = new URL(request.url());
+
+    if (method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(challengeRows),
+      });
+      return;
+    }
+
+    if (method === 'PATCH') {
+      const challengeId = getEqParam(url, 'id');
+      const payload = request.postDataJSON();
+      challengeRows = challengeRows.map((row) => row.id === challengeId ? { ...row, ...payload } : row);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    if (method === 'POST') {
+      const rows = Array.isArray(request.postDataJSON()) ? request.postDataJSON() : [request.postDataJSON()];
+      for (const [index, row] of rows.entries()) {
+        const newId = `new-challenge-${index + 1}`;
+        challengeRows.push({ ...row, id: newId });
+        validChallengeIds.add(newId);
+      }
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    if (method === 'DELETE') {
+      const ids = (url.searchParams.get('id') || '')
+        .replace(/^in\.\(/, '')
+        .replace(/\)$/, '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      challengeRows = challengeRows.filter((row) => !ids.includes(row.id));
+      ids.forEach((id) => validChallengeIds.delete(id));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+  });
+
+  await context.route('**/rest/v1/open_text_responses*', async (route, request) => {
+    if (request.method() !== 'POST') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    const payload = request.postDataJSON();
+    submittedChallengeIds.push(payload.challenge_id);
+
+    if (!validChallengeIds.has(payload.challenge_id)) {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: 'insert or update on table open_text_responses violates foreign key constraint open_text_responses_challenge_id_fkey',
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify([{ id: 'response-1', ...payload }]),
+    });
+  });
+
+  const studentPage = page;
+  await startPlaySession(studentPage, moduleId);
+  await expect(studentPage.locator('.open-text-renderer')).toBeVisible();
+
+  const teacherPage = await context.newPage();
+  await loginToEditor(teacherPage);
+  await teacherPage.getByRole('button', { name: /Editar/i }).click();
+  await teacherPage.locator('.prompt-input').first().fill('Escreva uma frase com sujeito composto.');
+  await teacherPage.getByRole('button', { name: /Salvar/i }).click();
+  await expect(teacherPage.getByText(/Salvo/i)).toBeVisible();
+
+  await studentPage.getByPlaceholder('Escreva sua resposta aqui...').fill('Os alunos estudaram.');
+  await studentPage.getByRole('button', { name: 'Enviar resposta' }).click();
+  await expect(studentPage.getByText('Parabens!')).toBeVisible();
+
+  expect(submittedChallengeIds).toEqual(['challenge-open-text-1']);
+});
+
+test('bloqueia salvar drag_drop sem a lacuna obrigatoria', async ({ page }) => {
+  const modulesListResponse = [
+    {
+      id: 'existing-module',
+      title: 'Modulo Ja Existente',
+      author: 'Profa',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+  let modulePostCount = 0;
+  let challengePostCount = 0;
+
+  await page.route('**/rest/v1/modules*', async (route, request) => {
+    if (request.method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(modulesListResponse) });
+      return;
+    }
+
+    modulePostCount += 1;
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify([{ id: 'new-module' }]) });
+  });
+
+  await page.route('**/rest/v1/challenges*', async (route, request) => {
+    if (request.method() === 'POST') {
+      challengePostCount += 1;
+      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify([]) });
+      return;
+    }
+
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+  });
+
+  await loginToEditor(page);
+  await page.locator('.page-header .new-btn').nth(1).click();
+
+  await page.locator('.title-input').fill('Modulo Drag Drop');
+  await page.getByRole('button', { name: /Adicionar Pergunta/i }).click();
+  await page.locator('#type-select').selectOption('drag_drop');
+  await page.locator('.prompt-input').first().fill('Complete a frase sem lacuna marcada');
+  await page.getByPlaceholder('Palavra que preenche a lacuna').fill('correta');
+  await page.getByPlaceholder('Opcao da mochila 1').fill('errada');
+  await page.getByPlaceholder('Opcao da mochila 2').fill('outra');
+
+  await page.getByRole('button', { name: /Salvar/i }).click();
+  await expect(page.locator('.save-error')).toContainText('Use "_____" no enunciado para marcar a lacuna da resposta.');
+  expect(modulePostCount).toBe(0);
+  expect(challengePostCount).toBe(0);
+});
+
+test('bloqueia salvar true_false com afirmacao vazia', async ({ page }) => {
+  const modulesListResponse = [
+    {
+      id: 'existing-module',
+      title: 'Modulo Ja Existente',
+      author: 'Profa',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+
+  await page.route('**/rest/v1/modules*', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(modulesListResponse) });
+  });
+
+  await page.route('**/rest/v1/challenges*', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+  });
+
+  await loginToEditor(page);
+  await page.locator('.page-header .new-btn').nth(1).click();
+
+  await page.locator('.title-input').fill('Modulo True False');
+  await page.getByRole('button', { name: /Adicionar Pergunta/i }).click();
+  await page.locator('#type-select').selectOption('true_false');
+  await page.locator('.prompt-input').first().fill('Julgue as afirmacoes abaixo.');
+
+  await page.getByRole('button', { name: /Salvar/i }).click();
+  await expect(page.locator('.save-error')).toContainText('Preencha a afirmacao 1.');
+});
+
+test('mantem prompt visivel quando a questao possui imagem', async ({ page }) => {
+  const moduleId = 'module-image-prompt';
+  const imageDataUrl = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  const challenges = [
+    {
+      id: 'mc-image-1',
+      module_id: moduleId,
+      type: 'multiple_choice',
+      prompt: 'Leia a imagem e marque a alternativa correta.',
+      difficulty: 1,
+      sort_order: 1,
+      data: {
+        imageUrl: imageDataUrl,
+        imageAlt: 'Imagem de teste',
+        imageCaption: 'Legenda de teste',
+        monster: { name: 'Monstro de Teste', sprite: 'monster_01' },
+        options: [
+          { text: 'Alternativa errada', correct: false, feedback: '' },
+          { text: 'Alternativa correta', correct: true, feedback: '' },
+        ],
+      },
+    },
+  ];
+
+  await createModuleRoutes(page, {
+    moduleId,
+    title: 'Modulo com Imagem',
+    author: 'Teste',
+    challenges,
+  });
+
+  await startPlaySession(page, moduleId);
+
+  await expect(page.getByText('Leia a imagem e marque a alternativa correta.')).toBeVisible();
+  await expect(page.getByAltText('Imagem de teste')).toBeVisible();
+  await expect(page.getByText('Legenda de teste')).toBeVisible();
 });

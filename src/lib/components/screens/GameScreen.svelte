@@ -236,9 +236,14 @@
         message: 'Resposta enviada para correcao do professor.',
       };
     } catch (error) {
+      const rawMessage = error?.message || '';
+      const challengeWasUpdated = /foreign key constraint|open_text_responses_challenge_id_fkey/i.test(rawMessage);
+
       return {
         submitted: false,
-        message: error.message || 'Nao foi possivel enviar sua resposta.',
+        message: challengeWasUpdated
+          ? 'Esta pergunta foi atualizada pelo professor. Volte ao menu e abra o modulo novamente antes de responder.'
+          : rawMessage || 'Nao foi possivel enviar sua resposta.',
       };
     }
   }

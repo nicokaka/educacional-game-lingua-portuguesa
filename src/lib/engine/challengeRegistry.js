@@ -32,13 +32,18 @@ const validators = {
   true_false: (challenge, answer) => {
     if (Array.isArray(challenge.statements) && challenge.statements.length > 0) {
       if (!Array.isArray(answer) || answer.length !== challenge.statements.length) return false;
+      if (!challenge.statements.every((statement) => typeof statement?.correctAnswer === 'boolean')) {
+        return false;
+      }
       return challenge.statements.every((statement, index) => answer[index] === statement.correctAnswer);
     }
 
     if (Array.isArray(answer)) {
+      if (typeof challenge.correctAnswer !== 'boolean') return false;
       return answer.length === 1 && answer[0] === challenge.correctAnswer;
     }
 
+    if (typeof challenge.correctAnswer !== 'boolean') return false;
     return answer === challenge.correctAnswer;
   },
 

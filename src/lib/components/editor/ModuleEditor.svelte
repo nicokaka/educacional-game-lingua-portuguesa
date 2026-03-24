@@ -10,6 +10,7 @@
     moduleId = null,
     initialTitle = '',
     initialAuthor = '',
+    initialUpdatedAt = '',
     initialChallenges = [],
     onSave,
     onCancel,
@@ -102,6 +103,7 @@
 
     const copy = hydrateChallenge(source);
     copy.id = createChallengeId();
+    delete copy.challengeRecordId;
     challenges = [
       ...challenges.slice(0, index + 1),
       copy,
@@ -112,8 +114,9 @@
 
   function getChallengeErrors(challenge) {
     const errors = [];
+    const prompt = challenge?.prompt?.trim?.() || '';
 
-    if (!challenge?.prompt?.trim()) {
+    if (!prompt) {
       errors.push('Preencha o enunciado.');
     }
 
@@ -124,6 +127,13 @@
         const emptyStatement = challenge.statements.findIndex((statement) => !statement.text?.trim());
         if (emptyStatement !== -1) {
           errors.push(`Preencha a afirmacao ${emptyStatement + 1}.`);
+        }
+
+        const invalidAnswer = challenge.statements.findIndex(
+          (statement) => typeof statement?.correctAnswer !== 'boolean'
+        );
+        if (invalidAnswer !== -1) {
+          errors.push(`Defina Verdadeiro ou Falso na afirmacao ${invalidAnswer + 1}.`);
         }
       }
     }
@@ -145,6 +155,10 @@
     }
 
     if (challenge?.type === 'drag_drop') {
+      if (prompt && !prompt.includes('_____')) {
+        errors.push('Use "_____" no enunciado para marcar a lacuna da resposta.');
+      }
+
       if (!challenge.correctAnswer?.trim()) {
         errors.push('Preencha a resposta correta.');
       }
@@ -202,6 +216,7 @@
   $effect(() => {
     if (typeof window === 'undefined') return;
     const key = draftStorageKey;
+    const serverUpdatedAt = initialUpdatedAt ? new Date(initialUpdatedAt).getTime() : 0;
 
     try {
       const rawDraft = window.localStorage.getItem(key);
@@ -212,6 +227,12 @@
 
       const parsed = JSON.parse(rawDraft);
       if (parsed?.version !== DRAFT_VERSION || typeof parsed !== 'object') {
+        draftReady = true;
+        return;
+      }
+
+      if (moduleId && serverUpdatedAt > 0 && Number(parsed.updatedAt) < serverUpdatedAt) {
+        showDraftMessage('Rascunho local ignorado porque o modulo salvo e mais recente.');
         draftReady = true;
         return;
       }

@@ -2,12 +2,23 @@ import { test, expect } from '@playwright/test';
 
 const MODULE_ID = 'module-1';
 
+async function startPlaySession(page) {
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.sessionStorage.setItem('alquimia-verbal:classroom-id', 'class-test');
+    window.sessionStorage.setItem('alquimia-verbal:classroom-name', 'Turma Teste');
+    window.sessionStorage.setItem('alquimia-verbal:student-name', 'Aluno Teste');
+  });
+  await page.goto(`/#/play/${MODULE_ID}`);
+}
+
 const modulesListResponse = [
   {
     id: MODULE_ID,
     title: 'Modulo E2E',
     author: 'Teste',
     created_at: '2026-03-13T00:00:00.000Z',
+    updated_at: '2026-03-13T00:00:00.000Z',
     challenges: [{ count: 2 }],
   },
 ];
@@ -17,6 +28,7 @@ const moduleSingleResponse = {
   title: 'Modulo E2E',
   author: 'Teste',
   created_at: '2026-03-13T00:00:00.000Z',
+  updated_at: '2026-03-13T00:00:00.000Z',
 };
 
 const challengesResponse = [
@@ -125,10 +137,7 @@ async function answerCurrentQuestionCorrectly(page) {
 }
 
 test('entra no modulo sem loading infinito e avanca para a segunda pergunta', async ({ page }) => {
-  await page.goto('/');
-
-  await expect(page.getByText('Modulo E2E')).toBeVisible();
-  await page.getByRole('button', { name: /Modulo E2E/i }).click();
+  await startPlaySession(page);
   await expect(page.getByText('Carregando desafios...')).toHaveCount(0);
 
   const promptBefore = await getVisiblePrompt(page);
@@ -141,9 +150,7 @@ test('entra no modulo sem loading infinito e avanca para a segunda pergunta', as
 });
 
 test('consegue renderizar e responder multiple choice mesmo quando o Supabase nao envia ids nas opcoes', async ({ page }) => {
-  await page.goto('/');
-
-  await page.getByRole('button', { name: /Modulo E2E/i }).click();
+  await startPlaySession(page);
   while ((await getVisiblePrompt(page)) !== 'Pergunta sem ids nas alternativas') {
     await answerCurrentQuestionCorrectly(page);
   }

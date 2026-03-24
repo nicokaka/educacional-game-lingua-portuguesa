@@ -91,6 +91,7 @@
         id: mod.id,
         title: full.module,
         author: full.author,
+        updatedAt: full.updatedAt,
         challenges: full.challenges,
       };
     } catch (e) {
@@ -254,6 +255,7 @@
           moduleId={editing.id}
           initialTitle={editing.title}
           initialAuthor={editing.author}
+          initialUpdatedAt={editing.updatedAt}
           initialChallenges={editing.challenges}
           onSave={handleSaved}
           onCancel={() => { editing = null; }}

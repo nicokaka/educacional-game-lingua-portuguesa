@@ -5,16 +5,34 @@
   let selections = $state([]);
   let feedbackText = $state('');
 
-  let statements = $derived(
-    Array.isArray(challenge?.statements) && challenge.statements.length > 0
+  function normalizeSingleStatement(challenge) {
+    if (!challenge?.prompt?.trim?.()) return [];
+    if (typeof challenge?.correctAnswer !== 'boolean') return [];
+    return [{ text: challenge.prompt, correctAnswer: challenge.correctAnswer }];
+  }
+
+  function isRenderableStatement(statement) {
+    return Boolean(statement?.text?.trim?.()) && typeof statement?.correctAnswer === 'boolean';
+  }
+
+  let statements = $derived.by(() => {
+    const rawStatements = Array.isArray(challenge?.statements) && challenge.statements.length > 0
       ? challenge.statements
-      : [{ text: challenge?.prompt || '', correctAnswer: challenge?.correctAnswer }]
-  );
+      : normalizeSingleStatement(challenge);
+
+    return rawStatements.filter(isRenderableStatement);
+  });
 
   let isMultiStatement = $derived(statements.length > 1);
 
   let showPrompt = $derived(
     Array.isArray(challenge?.statements) && challenge.statements.length > 0
+  );
+
+  let hasConfigurationError = $derived(
+    Array.isArray(challenge?.statements) && challenge.statements.length > 0
+      ? statements.length !== challenge.statements.length
+      : statements.length === 0
   );
 
   $effect(() => {
@@ -31,7 +49,9 @@
   }
 
   function canConfirm() {
-    return selections.length > 0 && selections.every((value) => typeof value === 'boolean');
+    return !hasConfigurationError &&
+      selections.length > 0 &&
+      selections.every((value) => typeof value === 'boolean');
   }
 
   function confirm() {
@@ -77,40 +97,46 @@
     <p class="challenge-prompt">{challenge.prompt}</p>
   {/if}
 
-  <div class="statements-list">
-    {#each statements as statement, index}
-      <div class="statement-card" class:single-statement={!isMultiStatement}>
-        {#if isMultiStatement}
-          <div class="statement-meta">Afirmacao {index + 1}</div>
-        {/if}
-        <p class="statement-text">{statement.text}</p>
-        <div class="tf-buttons">
-          <button
-            class="tf-btn verdadeiro"
-            class:selected={selections[index] === true}
-            class:correct={isStatementCorrect(index, true)}
-            class:wrong={isStatementWrong(index, true)}
-            onclick={() => choose(index, true)}
-            disabled={answered}
-          >
-            <span class="tf-badge" aria-hidden="true">✓</span>
-            <span class="tf-label">Verdadeiro</span>
-          </button>
-          <button
-            class="tf-btn falso"
-            class:selected={selections[index] === false}
-            class:correct={isStatementCorrect(index, false)}
-            class:wrong={isStatementWrong(index, false)}
-            onclick={() => choose(index, false)}
-            disabled={answered}
-          >
-            <span class="tf-badge" aria-hidden="true">✕</span>
-            <span class="tf-label">Falso</span>
-          </button>
+  {#if hasConfigurationError}
+    <div class="config-error" role="status">
+      Esta pergunta de verdadeiro ou falso esta incompleta. O professor precisa revisar as afirmacoes.
+    </div>
+  {:else}
+    <div class="statements-list">
+      {#each statements as statement, index}
+        <div class="statement-card" class:single-statement={!isMultiStatement}>
+          {#if isMultiStatement}
+            <div class="statement-meta">Afirmacao {index + 1}</div>
+          {/if}
+          <p class="statement-text">{statement.text}</p>
+          <div class="tf-buttons">
+            <button
+              class="tf-btn verdadeiro"
+              class:selected={selections[index] === true}
+              class:correct={isStatementCorrect(index, true)}
+              class:wrong={isStatementWrong(index, true)}
+              onclick={() => choose(index, true)}
+              disabled={answered}
+            >
+              <span class="tf-badge" aria-hidden="true">V</span>
+              <span class="tf-label">Verdadeiro</span>
+            </button>
+            <button
+              class="tf-btn falso"
+              class:selected={selections[index] === false}
+              class:correct={isStatementCorrect(index, false)}
+              class:wrong={isStatementWrong(index, false)}
+              onclick={() => choose(index, false)}
+              disabled={answered}
+            >
+              <span class="tf-badge" aria-hidden="true">F</span>
+              <span class="tf-label">Falso</span>
+            </button>
+          </div>
         </div>
-      </div>
-    {/each}
-  </div>
+      {/each}
+    </div>
+  {/if}
 
   {#if canConfirm() && !answered}
     <button class="confirm-btn" onclick={confirm}>
@@ -120,7 +146,7 @@
 
   <div class="hint-row">
     <button class="hint-btn" onclick={askHint} disabled={answered} aria-label="Pedir bizu" title="Pedir bizu">
-      💡
+      ?
     </button>
   </div>
 
@@ -155,6 +181,18 @@
     flex-direction: column;
     align-items: center;
     gap: 1rem;
+  }
+
+  .config-error {
+    width: 100%;
+    max-width: 680px;
+    padding: 0.95rem 1rem;
+    border-radius: 16px;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    background: rgba(127, 29, 29, 0.18);
+    color: #fecaca;
+    line-height: 1.5;
+    text-align: center;
   }
 
   .statement-card {

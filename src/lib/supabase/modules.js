@@ -72,6 +72,7 @@ export async function fetchModuleWithChallenges(moduleId, options = {}) {
     id: moduleRow.id,
     module: moduleRow.title,
     author: moduleRow.author,
+    updatedAt: moduleRow.updated_at,
     challenges: challengeRows.map((challengeRow, index) =>
       normalizeChallenge({
         ...challengeRow.data,
@@ -134,28 +135,58 @@ export async function updateModule(moduleId, moduleData, challenges) {
 
   if (moduleError) throw new Error(`Erro ao atualizar modulo: ${moduleError.message}`);
 
-  const { error: deleteError } = await supabase
+  const { data: existingChallengeRows, error: existingChallengesError } = await supabase
     .from('challenges')
-    .delete()
+    .select('id')
     .eq('module_id', moduleId);
 
-  if (deleteError) throw new Error(`Erro ao limpar desafios antigos: ${deleteError.message}`);
+  if (existingChallengesError) {
+    throw new Error(`Erro ao carregar desafios existentes: ${existingChallengesError.message}`);
+  }
 
-  if (challenges.length > 0) {
-    const rows = challenges.map((challenge, index) => ({
-      module_id: moduleId,
-      type: challenge.type,
-      prompt: challenge.prompt,
-      difficulty: challenge.difficulty || 1,
-      data: extractChallengeData(challenge),
-      sort_order: index + 1,
-    }));
+  const existingIds = new Set((existingChallengeRows || []).map((row) => row.id));
+  const keptIds = new Set();
+  const rowsToInsert = [];
 
-    const { error: challengesError } = await supabase
+  for (const [index, challenge] of challenges.entries()) {
+    const rowPayload = buildChallengeRowPayload(moduleId, challenge, index + 1);
+    const existingRowId = resolveExistingChallengeRowId(challenge, existingIds);
+
+    if (existingRowId) {
+      keptIds.add(existingRowId);
+
+      const { error: updateError } = await supabase
+        .from('challenges')
+        .update(rowPayload)
+        .eq('id', existingRowId);
+
+      if (updateError) {
+        throw new Error(`Erro ao atualizar desafio: ${updateError.message}`);
+      }
+
+      continue;
+    }
+
+    rowsToInsert.push(rowPayload);
+  }
+
+  if (rowsToInsert.length > 0) {
+    const { error: insertError } = await supabase
       .from('challenges')
-      .insert(rows);
+      .insert(rowsToInsert);
 
-    if (challengesError) throw new Error(`Erro ao salvar desafios: ${challengesError.message}`);
+    if (insertError) throw new Error(`Erro ao salvar novos desafios: ${insertError.message}`);
+  }
+
+  const removedIds = [...existingIds].filter((id) => !keptIds.has(id));
+
+  if (removedIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('challenges')
+      .delete()
+      .in('id', removedIds);
+
+    if (deleteError) throw new Error(`Erro ao remover desafios excluidos: ${deleteError.message}`);
   }
 }
 
@@ -176,7 +207,7 @@ export async function deleteModule(moduleId) {
  * Extrai os dados especificos do tipo de desafio.
  */
 function extractChallengeData(challenge) {
-  const { type, prompt, difficulty, id, ...data } = challenge;
+  const { type, prompt, difficulty, id, challengeRecordId, ...data } = challenge;
 
   if (type === 'multiple_choice' && Array.isArray(data.options)) {
     data.options = data.options.map((option, index) => ({
@@ -186,6 +217,25 @@ function extractChallengeData(challenge) {
   }
 
   return data;
+}
+
+function buildChallengeRowPayload(moduleId, challenge, sortOrder) {
+  return {
+    module_id: moduleId,
+    type: challenge.type,
+    prompt: challenge.prompt,
+    difficulty: challenge.difficulty || 1,
+    data: extractChallengeData(challenge),
+    sort_order: sortOrder,
+  };
+}
+
+function resolveExistingChallengeRowId(challenge, existingIds) {
+  const candidateIds = [challenge?.challengeRecordId, challenge?.id]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  return candidateIds.find((value) => existingIds.has(value)) || null;
 }
 
 function normalizeChallenge(challenge) {
@@ -203,7 +253,9 @@ function normalizeChallenge(challenge) {
   if (normalized.type === 'true_false' && Array.isArray(normalized.statements)) {
     normalized.statements = normalized.statements.map((statement) => ({
       text: statement.text || '',
-      correctAnswer: Boolean(statement.correctAnswer),
+      correctAnswer: typeof statement.correctAnswer === 'boolean'
+        ? statement.correctAnswer
+        : undefined,
     }));
   }
 

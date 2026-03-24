@@ -179,7 +179,9 @@
     feedbackText = result.hint;
   }
 
-  let promptParts = $derived(challenge.prompt.split('_____'));
+  let promptText = $derived(String(challenge?.prompt || ''));
+  let hasPlaceholder = $derived(promptText.includes('_____'));
+  let promptParts = $derived(hasPlaceholder ? promptText.split('_____') : [promptText, '']);
 </script>
 
 <div class="renderer drag-drop-renderer">
@@ -205,6 +207,10 @@
       <span class="phrase-text">{promptParts[1]}</span>
     {/if}
   </div>
+
+  {#if !hasPlaceholder}
+    <p class="config-warning">Esta pergunta esta sem a lacuna "_____". O professor precisa ajustar o enunciado.</p>
+  {/if}
 
   <div class="backpack">
     <p class="backpack-label">Mochila</p>
@@ -332,6 +338,15 @@
     border: 1px solid var(--color-border, #334155);
     border-radius: 18px;
     padding: 1.25rem;
+  }
+
+  .config-warning {
+    max-width: 620px;
+    margin-top: -0.8rem;
+    color: #fde68a;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    text-align: center;
   }
 
   .backpack-label {
