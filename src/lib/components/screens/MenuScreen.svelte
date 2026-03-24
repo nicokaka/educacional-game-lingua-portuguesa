@@ -29,6 +29,7 @@
   let leaderboardModule = $state(null);
   let pendingLeaderboardModule = $state(null);
   let leaderboardClassroomName = $state('');
+  let leaderboardStudentName = $state('');
   let leaderboardTop3 = $state([]);
   let currentStudentLeaderboard = $state(null);
   let showResetLeaderboardPrompt = $state(false);
@@ -134,6 +135,7 @@
 
     const trimmedName = studentName.trim();
     const selectedClassroom = classrooms.find((classroom) => classroom.id === selectedClassroomId);
+    const modalMode = studentModalMode;
 
     if (classroomsError) {
       studentNameError = classroomsError;
@@ -150,19 +152,23 @@
       return;
     }
 
-    if (!trimmedName) {
+    if (modalMode !== 'leaderboard' && !trimmedName) {
       studentNameError = 'Digite seu nome para continuar.';
       return;
     }
 
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(STUDENT_NAME_KEY, trimmedName);
       window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
       window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
+
+      if (trimmedName) {
+        window.sessionStorage.setItem(STUDENT_NAME_KEY, trimmedName);
+      } else if (modalMode === 'leaderboard') {
+        window.sessionStorage.removeItem(STUDENT_NAME_KEY);
+      }
     }
 
     const moduleId = selectedModuleId;
-    const modalMode = studentModalMode;
     const leaderboardToOpen = pendingLeaderboardModule;
     closeStudentModal();
     if (modalMode === 'reviews') {
@@ -188,6 +194,7 @@
     leaderboardError = '';
     leaderboardModule = moduleData;
     leaderboardClassroomName = getSavedClassroomName().trim();
+    leaderboardStudentName = getSavedStudentName().trim();
     leaderboardTop3 = [];
     currentStudentLeaderboard = null;
     showResetLeaderboardPrompt = false;
@@ -196,9 +203,9 @@
     resetLeaderboardSuccess = '';
 
     try {
-      const studentName = getSavedStudentName().trim();
-      const classroomId = getSavedClassroomId().trim();
-      const result = await fetchModuleLeaderboard(moduleData.id, studentName, classroomId);
+    const studentName = getSavedStudentName().trim();
+    const classroomId = getSavedClassroomId().trim();
+    const result = await fetchModuleLeaderboard(moduleData.id, studentName, classroomId);
       leaderboardTop3 = result.top3;
       currentStudentLeaderboard = result.currentStudent;
     } catch (error) {
@@ -209,10 +216,9 @@
   }
 
   async function openLeaderboard(moduleData) {
-    const studentName = getSavedStudentName().trim();
     const classroomId = getSavedClassroomId().trim();
 
-    if (!studentName || !classroomId) {
+    if (!classroomId) {
       pendingLeaderboardModule = moduleData;
       openStudentModal('', 'leaderboard');
       return;
@@ -227,6 +233,7 @@
     leaderboardError = '';
     leaderboardModule = null;
     leaderboardClassroomName = '';
+    leaderboardStudentName = '';
     leaderboardTop3 = [];
     currentStudentLeaderboard = null;
     showResetLeaderboardPrompt = false;
@@ -482,7 +489,7 @@
           {studentModalMode === 'reviews'
             ? 'Digite seu nome para consultar suas respostas abertas corrigidas.'
             : studentModalMode === 'leaderboard'
-              ? 'Escolha sua turma e digite seu nome para ver o placar certo da aula.'
+              ? 'Escolha sua turma para ver o placar da aula. Se quiser destacar sua posicao, digite seu nome.'
               : 'Digite seu nome para entrar no modulo.'}
         </p>
 
@@ -507,7 +514,9 @@
         </div>
 
         <div class="student-field">
-          <label class="field-label" for="student-name-input">Nome do aluno</label>
+          <label class="field-label" for="student-name-input">
+            {studentModalMode === 'leaderboard' ? 'Nome do aluno (opcional)' : 'Nome do aluno'}
+          </label>
           <input
             id="student-name-input"
             class="student-input"
@@ -638,7 +647,9 @@
         </div>
       {:else}
         <p class="empty-hint">
-          {leaderboardClassroomName
+          {!leaderboardStudentName
+            ? 'Digite seu nome para destacar sua posicao no ranking.'
+            : leaderboardClassroomName
             ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} nas ultimas 12 horas.`
             : `Voce ainda nao tem tentativa registrada neste modulo nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas.`}
         </p>

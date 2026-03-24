@@ -804,3 +804,77 @@ test('placar mostra nao concluiu para tentativa salva com completed false', asyn
   await expect(page.getByText('Nao concluiu')).toHaveCount(2);
   await expect(page.getByText('Em andamento')).toHaveCount(0);
 });
+
+test('placar abre sem nome do aluno e mostra mensagem neutra para destacar posicao', async ({ page }) => {
+  const moduleId = 'module-leaderboard-without-name';
+  const classroom = {
+    id: 'class-test',
+    name: 'Turma Teste',
+    sort_order: 1,
+    active: true,
+    created_at: '2026-03-20T10:00:00.000Z',
+  };
+  const modulesListResponse = [
+    {
+      id: moduleId,
+      title: 'Modulo Placar Sem Nome',
+      author: 'Teste',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+  const attemptsResponse = [
+    {
+      id: 'attempt-1',
+      module_id: moduleId,
+      classroom_id: classroom.id,
+      classroom_name: classroom.name,
+      student_name: 'Ana',
+      score: 30,
+      max_score: 30,
+      completed: true,
+      created_at: '2026-03-21T11:00:00.000Z',
+    },
+  ];
+
+  await page.route('**/rest/v1/classrooms*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([classroom]),
+    });
+  });
+
+  await page.route('**/rest/v1/modules*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modulesListResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/module_attempts*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(attemptsResponse),
+    });
+  });
+
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.sessionStorage.setItem('alquimia-verbal:classroom-id', 'class-test');
+    window.sessionStorage.setItem('alquimia-verbal:classroom-name', 'Turma Teste');
+    window.sessionStorage.removeItem('alquimia-verbal:student-name');
+  });
+  await page.goto('/');
+
+  await page.locator('.module-rank-btn').click();
+
+  await expect(page.getByRole('dialog', { name: 'Placar do modulo' })).toBeVisible();
+  await expect(page.getByText('Ana')).toBeVisible();
+  await expect(page.getByText('Digite seu nome para destacar sua posicao no ranking.')).toBeVisible();
+  await expect(page.locator('.leaderboard-entry.current-student')).toHaveCount(0);
+  await expect(page.getByLabel('Informar nome do aluno')).toHaveCount(0);
+});
