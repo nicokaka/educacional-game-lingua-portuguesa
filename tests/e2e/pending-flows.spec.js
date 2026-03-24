@@ -734,3 +734,73 @@ test('mantem prompt visivel quando a questao possui imagem', async ({ page }) =>
   await expect(page.getByAltText('Imagem de teste')).toBeVisible();
   await expect(page.getByText('Legenda de teste')).toBeVisible();
 });
+
+test('placar mostra nao concluiu para tentativa salva com completed false', async ({ page }) => {
+  const moduleId = 'module-leaderboard-status';
+  const classroom = {
+    id: 'class-test',
+    name: 'Turma Teste',
+    sort_order: 1,
+    active: true,
+    created_at: '2026-03-20T10:00:00.000Z',
+  };
+  const modulesListResponse = [
+    {
+      id: moduleId,
+      title: 'Modulo Placar',
+      author: 'Teste',
+      created_at: '2026-03-14T00:00:00.000Z',
+      updated_at: '2026-03-14T00:00:00.000Z',
+      challenges: [{ count: 1 }],
+    },
+  ];
+  const attemptsResponse = [
+    {
+      id: 'attempt-1',
+      module_id: moduleId,
+      classroom_id: classroom.id,
+      classroom_name: classroom.name,
+      student_name: 'Aluno Teste',
+      score: 10,
+      max_score: 30,
+      completed: false,
+      created_at: '2026-03-21T11:00:00.000Z',
+    },
+  ];
+
+  await page.route('**/rest/v1/classrooms*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([classroom]),
+    });
+  });
+
+  await page.route('**/rest/v1/modules*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modulesListResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/module_attempts*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(attemptsResponse),
+    });
+  });
+
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.sessionStorage.setItem('alquimia-verbal:classroom-id', 'class-test');
+    window.sessionStorage.setItem('alquimia-verbal:classroom-name', 'Turma Teste');
+    window.sessionStorage.setItem('alquimia-verbal:student-name', 'Aluno Teste');
+  });
+  await page.goto('/');
+
+  await page.locator('.module-rank-btn').click();
+  await expect(page.getByText('Nao concluiu')).toHaveCount(2);
+  await expect(page.getByText('Em andamento')).toHaveCount(0);
+});
