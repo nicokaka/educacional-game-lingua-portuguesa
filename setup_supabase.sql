@@ -68,6 +68,7 @@ CREATE TABLE module_attempts (
   score INTEGER NOT NULL,
   max_score INTEGER NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT false,
+  finished_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -114,6 +115,7 @@ CREATE POLICY "Anyone can insert challenges" ON challenges FOR INSERT WITH CHECK
 CREATE POLICY "Anyone can update challenges" ON challenges FOR UPDATE USING (true);
 CREATE POLICY "Anyone can delete challenges" ON challenges FOR DELETE USING (true);
 CREATE POLICY "Anyone can insert module attempts" ON module_attempts FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can update module attempts" ON module_attempts FOR UPDATE USING (true);
 CREATE POLICY "Anyone can insert open text responses" ON open_text_responses FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can update open text responses" ON open_text_responses FOR UPDATE USING (true);
 

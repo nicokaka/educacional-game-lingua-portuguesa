@@ -271,6 +271,22 @@ async function mockBaseOpenTextFlow(page, state) {
       return;
     }
 
+    if (method === 'PATCH') {
+      const responseId = getEqParam(url, 'id');
+      const payload = request.postDataJSON();
+
+      state.moduleAttempts = state.moduleAttempts.map((row) =>
+        row.id === responseId ? { ...row, ...payload } : row
+      );
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(state.moduleAttempts.filter((row) => row.id === responseId)),
+      });
+      return;
+    }
+
     if (method === 'GET') {
       const moduleId = getEqParam(url, 'module_id');
       const rows = moduleId
@@ -414,4 +430,69 @@ test('permite ver correcoes escolhendo um perfil salvo quando o aluno esquece o 
 
   await expect(page.getByText('Resposta guardada para revisao')).toBeVisible();
   await expect(page.getByText('Ano 7 - Turma A').first()).toBeVisible();
+});
+
+test('faz fallback ao salvar resposta aberta quando o banco ainda nao conhece student_access_id', async ({ page }) => {
+  let responseCount = 0;
+  let attemptCount = 0;
+  let openTextResponses = [];
+  let moduleAttempts = [];
+  let firstPayload = null;
+  let retryPayload = null;
+
+  await mockBaseOpenTextFlow(page, {
+    get responseCount() {
+      return responseCount;
+    },
+    set responseCount(value) {
+      responseCount = value;
+    },
+    get attemptCount() {
+      return attemptCount;
+    },
+    set attemptCount(value) {
+      attemptCount = value;
+    },
+    get openTextResponses() {
+      return openTextResponses;
+    },
+    set openTextResponses(value) {
+      openTextResponses = value;
+    },
+    get moduleAttempts() {
+      return moduleAttempts;
+    },
+    set moduleAttempts(value) {
+      moduleAttempts = value;
+    },
+  });
+
+  await page.route('**/rest/v1/open_text_responses*', async (route, request) => {
+    if (request.method() !== 'POST') {
+      await route.fallback();
+      return;
+    }
+
+    const payload = toRows(request.postDataJSON())[0];
+
+    if (payload.student_access_id) {
+      firstPayload = payload;
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          message: "Could not find the 'student_access_id' column of 'open_text_responses' in the schema cache",
+        }),
+      });
+      return;
+    }
+
+    retryPayload = payload;
+    await route.fallback();
+  });
+
+  await startRunFromMenu(page, CLASSROOM_A.name, 'Alex', 'Resposta com fallback');
+
+  expect(firstPayload?.student_access_id).toBeTruthy();
+  expect(retryPayload?.student_access_id).toBeFalsy();
 });

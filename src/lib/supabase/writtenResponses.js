@@ -1,4 +1,16 @@
 import { supabase } from './client.js';
+let supportsStudentAccessIdColumn = true;
+
+function isMissingColumnError(error, columnName, tableName) {
+  const message = error?.message || '';
+  return new RegExp(`Could not find the '${columnName}' column of '${tableName}'`, 'i').test(message);
+}
+
+function stripStudentAccessId(payload) {
+  if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'student_access_id')) return payload;
+  const { student_access_id, ...rest } = payload;
+  return rest;
+}
 
 /**
  * Salva uma resposta aberta para correcao posterior.
@@ -14,9 +26,17 @@ import { supabase } from './client.js';
  * }} response
  */
 export async function createOpenTextResponse(response) {
-  const { error } = await supabase
+  let payload = supportsStudentAccessIdColumn ? response : stripStudentAccessId(response);
+  let { error } = await supabase
     .from('open_text_responses')
-    .insert(response);
+    .insert(payload);
+
+  if (error && supportsStudentAccessIdColumn && isMissingColumnError(error, 'student_access_id', 'open_text_responses')) {
+    supportsStudentAccessIdColumn = false;
+    ({ error } = await supabase
+      .from('open_text_responses')
+      .insert(stripStudentAccessId(response)));
+  }
 
   if (error) {
     throw new Error(`Erro ao salvar resposta aberta: ${error.message}`);

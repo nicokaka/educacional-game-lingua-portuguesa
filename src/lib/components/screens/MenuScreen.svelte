@@ -323,8 +323,9 @@
     showHelp = false;
   }
 
-  function getAttemptStatusLabel(completed) {
-    return completed ? 'Concluiu' : 'Nao concluiu';
+  function getAttemptStatusLabel(attempt) {
+    if (!attempt?.finished_at) return 'Em andamento';
+    return attempt.completed ? 'Concluiu' : 'Nao concluiu';
   }
 
   function getLeaderboardPeriodLabel(period) {
@@ -685,7 +686,7 @@
                 <div class="leaderboard-meta">
                   <span class="leaderboard-stat strong">{Math.round(entry.percentage * 100)}%</span>
                   <span class="leaderboard-stat">{entry.score}/{entry.max_score} pontos</span>
-                  <span class="leaderboard-stat">{getAttemptStatusLabel(entry.completed)}</span>
+                  <span class="leaderboard-stat">{getAttemptStatusLabel(entry)}</span>
                 </div>
               </div>
             </div>
@@ -711,7 +712,7 @@
               <div class="leaderboard-meta">
                 <span class="leaderboard-stat strong">{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
                 <span class="leaderboard-stat">{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score} pontos</span>
-                <span class="leaderboard-stat">{getAttemptStatusLabel(currentStudentLeaderboard.completed)}</span>
+                <span class="leaderboard-stat">{getAttemptStatusLabel(currentStudentLeaderboard)}</span>
               </div>
             </div>
           </div>

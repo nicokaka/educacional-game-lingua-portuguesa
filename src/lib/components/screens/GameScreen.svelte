@@ -4,7 +4,7 @@
   import { createChallengeManager } from '../../engine/challengeManager.js';
   import { getChallengeRuntimeIssue } from '../../engine/challengeRegistry.js';
   import { initAudio, playSound } from '../../engine/feedbackEngine.js';
-  import { createModuleAttempt } from '../../supabase/attempts.js';
+  import { createModuleAttempt, updateModuleAttempt } from '../../supabase/attempts.js';
   import { createOpenTextResponse } from '../../supabase/writtenResponses.js';
   import {
     STUDENT_NAME_KEY,
@@ -37,6 +37,11 @@
   let attemptSaving = $state(false);
   let attemptSaveError = $state('');
   let attemptSavePromise = null;
+  let attemptRecordId = $state('');
+  let attemptRecordFinished = $state(false);
+  let attemptStartPromise = null;
+  let attemptSyncPromise = null;
+  let lastAttemptSnapshotKey = $state('');
   let attemptSaveErrorTimer = null;
   let runtimeNotice = $state('');
   let runtimeNoticeTimer = null;
@@ -120,6 +125,19 @@
   });
 
   $effect(() => {
+    const snapshotKey = `${game.phase}:${game.score}:${finalMaxScore}:${attemptRecordId}`;
+    if (loading || loadError || game.phase !== 'playing') return;
+
+    if (!attemptRecordId) {
+      void ensureActiveAttemptStarted();
+      return;
+    }
+
+    if (attemptRecordFinished || snapshotKey === lastAttemptSnapshotKey) return;
+    void syncActiveAttemptSnapshot(snapshotKey);
+  });
+
+  $effect(() => {
     if (loading || loadError || game.phase !== 'playing' || !manager || !game.currentChallenge) return;
 
     const issue = getChallengeRuntimeIssue(game.currentChallenge);
@@ -162,6 +180,21 @@
     }, 8000);
   }
 
+  function buildAttemptPayload(phase = game.phase, finishedAt = null) {
+    const context = getAttemptContext(phase);
+
+    return {
+      module_id: context.moduleId,
+      classroom_id: context.classroomId,
+      classroom_name: context.classroomName,
+      student_name: context.studentName,
+      score: game.score,
+      max_score: finalMaxScore,
+      completed: phase === 'victory',
+      finished_at: finishedAt,
+    };
+  }
+
   function getAttemptContext(phase = game.phase) {
     const studentName = typeof window !== 'undefined'
       ? window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim()
@@ -201,15 +234,7 @@
 
     attemptSavePromise = (async () => {
       try {
-        await createModuleAttempt({
-          module_id: context.moduleId,
-          classroom_id: context.classroomId,
-          classroom_name: context.classroomName,
-          student_name: context.studentName,
-          score: game.score,
-          max_score: finalMaxScore,
-          completed: phase === 'victory',
-        });
+        await finalizeActiveAttempt(phase);
 
         attemptSaved = true;
         console.info('[Alquimia Verbal] Tentativa salva com sucesso', {
@@ -239,6 +264,92 @@
     return attemptSavePromise;
   }
 
+  async function ensureActiveAttemptStarted() {
+    if (attemptRecordId || attemptRecordFinished) return attemptRecordId;
+    if (attemptStartPromise) return attemptStartPromise;
+
+    const context = getAttemptContext('playing');
+    if (!context.moduleId || !context.classroomId || !context.studentName) {
+      return '';
+    }
+
+    attemptStartPromise = (async () => {
+      try {
+        const row = await createModuleAttempt(buildAttemptPayload('playing', null));
+        attemptRecordId = row?.id || attemptRecordId;
+        attemptRecordFinished = false;
+        lastAttemptSnapshotKey = `playing:${game.score}:${finalMaxScore}:${attemptRecordId}`;
+        return attemptRecordId;
+      } catch (error) {
+        console.error('[Alquimia Verbal] Falha ao iniciar tentativa em andamento', {
+          moduleId: context.moduleId,
+          classroomId: context.classroomId,
+          studentName: context.studentName,
+          message: error?.message || 'Erro desconhecido',
+        });
+        return '';
+      } finally {
+        attemptStartPromise = null;
+      }
+    })();
+
+    return attemptStartPromise;
+  }
+
+  async function syncActiveAttemptSnapshot(snapshotKey) {
+    if (!attemptRecordId || attemptRecordFinished || game.phase !== 'playing') return false;
+    if (attemptSyncPromise) return attemptSyncPromise;
+
+    attemptSyncPromise = (async () => {
+      try {
+        await updateModuleAttempt(attemptRecordId, buildAttemptPayload('playing', null));
+        lastAttemptSnapshotKey = snapshotKey;
+        return true;
+      } catch (error) {
+        console.error('[Alquimia Verbal] Falha ao atualizar tentativa em andamento', {
+          moduleId,
+          attemptRecordId,
+          message: error?.message || 'Erro desconhecido',
+        });
+        return false;
+      } finally {
+        attemptSyncPromise = null;
+      }
+    })();
+
+    return attemptSyncPromise;
+  }
+
+  async function finalizeActiveAttempt(phase) {
+    const finishedAt = new Date().toISOString();
+    const payload = buildAttemptPayload(phase, finishedAt);
+    const isFinalResult = phase === 'victory' || phase === 'game_over';
+
+    if (attemptStartPromise) {
+      await attemptStartPromise;
+    }
+
+    if (attemptSyncPromise) {
+      await attemptSyncPromise;
+    }
+
+    if (attemptRecordId) {
+      await updateModuleAttempt(attemptRecordId, payload);
+    } else {
+      const row = await createModuleAttempt(payload);
+      attemptRecordId = row?.id || attemptRecordId;
+    }
+
+    attemptRecordFinished = true;
+    lastAttemptSnapshotKey = `final:${phase}:${game.score}:${finalMaxScore}:${attemptRecordId}`;
+
+    if (isFinalResult) {
+      attemptSaved = true;
+    }
+
+    return true;
+  }
+
   async function loadModule(id) {
     const token = ++activeLoadToken;
     const controller = new AbortController();
@@ -255,6 +366,11 @@
     attemptSaving = false;
     attemptSaveError = '';
     attemptSavePromise = null;
+    attemptRecordId = '';
+    attemptRecordFinished = false;
+    attemptStartPromise = null;
+    attemptSyncPromise = null;
+    lastAttemptSnapshotKey = '';
     if (attemptSaveErrorTimer) {
       clearTimeout(attemptSaveErrorTimer);
       attemptSaveErrorTimer = null;
@@ -279,6 +395,7 @@
       initAudio();
       manager = createChallengeManager(data.challenges, { randomize: false });
       startGame(data, manager);
+      void ensureActiveAttemptStarted();
       lastHp = game.monsterHp;
       lastPlayerHp = game.playerHp;
     } catch (e) {
@@ -383,6 +500,10 @@
   }
 
   async function handleRestart() {
+    if (game.phase === 'playing') {
+      await finalizeActiveAttempt('abandoned');
+    }
+
     if (game.phase === 'victory' || game.phase === 'game_over') {
       await saveAttemptIfNeeded(game.phase);
     }
@@ -400,6 +521,10 @@
   }
 
   async function goToMenu() {
+    if (game.phase === 'playing') {
+      await finalizeActiveAttempt('abandoned');
+    }
+
     if (game.phase === 'victory' || game.phase === 'game_over') {
       await saveAttemptIfNeeded(game.phase);
     }

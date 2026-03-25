@@ -76,6 +76,9 @@ const challengesResponse = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  let moduleAttempts = [];
+  let attemptCount = 0;
+
   await page.route('**/rest/v1/modules*', async (route, request) => {
     const acceptHeader = request.headers().accept || '';
     const url = new URL(request.url());
@@ -93,6 +96,66 @@ test.beforeEach(async ({ page }) => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify(challengesResponse),
+    });
+  });
+
+  await page.route('**/rest/v1/module_attempts*', async (route, request) => {
+    const method = request.method();
+    const url = new URL(request.url());
+
+    if (method === 'POST') {
+      const payload = request.postDataJSON();
+      const rows = (Array.isArray(payload) ? payload : [payload]).map((row) => ({
+        ...row,
+        id: `attempt-${++attemptCount}`,
+        created_at: row.created_at || `2026-03-21T11:00:0${attemptCount}.000Z`,
+      }));
+      moduleAttempts = [...rows, ...moduleAttempts];
+
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(rows),
+      });
+      return;
+    }
+
+    if (method === 'PATCH') {
+      const idFilter = url.searchParams.get('id') || '';
+      const attemptId = idFilter.startsWith('eq.') ? idFilter.slice(3) : '';
+      const payload = request.postDataJSON();
+
+      moduleAttempts = moduleAttempts.map((row) =>
+        row.id === attemptId ? { ...row, ...payload } : row
+      );
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(moduleAttempts.filter((row) => row.id === attemptId)),
+      });
+      return;
+    }
+
+    if (method === 'GET') {
+      const moduleIdFilter = url.searchParams.get('module_id') || '';
+      const moduleId = moduleIdFilter.startsWith('eq.') ? moduleIdFilter.slice(3) : '';
+      const rows = moduleId
+        ? moduleAttempts.filter((row) => row.module_id === moduleId)
+        : moduleAttempts;
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(rows),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([]),
     });
   });
 });
@@ -173,6 +236,7 @@ test('consegue renderizar e responder multiple choice mesmo quando o Supabase na
 
 test('salva module_attempts imediatamente ao acertar a ultima pergunta', async ({ page }) => {
   let postCount = 0;
+  let patchCount = 0;
 
   await page.route('**/rest/v1/module_attempts*', async (route, request) => {
     if (request.method() === 'POST') {
@@ -181,6 +245,16 @@ test('salva module_attempts imediatamente ao acertar a ultima pergunta', async (
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify([{ id: `attempt-${postCount}` }]),
+      });
+      return;
+    }
+
+    if (request.method() === 'PATCH') {
+      patchCount++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: 'attempt-1' }]),
       });
       return;
     }
@@ -199,8 +273,11 @@ test('salva module_attempts imediatamente ao acertar a ultima pergunta', async (
   }
 
   const attemptRequest = page.waitForRequest(
-    (request) => request.url().includes('/rest/v1/module_attempts') && request.method() === 'POST',
-    { timeout: 1500 }
+    (request) =>
+      request.url().includes('/rest/v1/module_attempts') &&
+      request.method() === 'PATCH' &&
+      String(request.postData() || '').includes('"completed":true'),
+    { timeout: 2500 }
   );
 
   await page.getByRole('button', { name: 'Falso' }).click();
@@ -209,6 +286,7 @@ test('salva module_attempts imediatamente ao acertar a ultima pergunta', async (
   await attemptRequest;
   await expect(page.getByText('Parabens!')).toBeVisible();
   expect(postCount).toBe(1);
+  expect(patchCount).toBeGreaterThan(0);
 });
 
 test('run perfeita chega ao maximo de pontos com conta intuitiva', async ({ page }) => {
@@ -223,26 +301,54 @@ test('run perfeita chega ao maximo de pontos com conta intuitiva', async ({ page
   await expect(page.locator('.score-ratio')).toContainText('30');
 });
 
-test('mostra aviso visual e tenta salvar novamente ao sair apos falha no POST', async ({ page }) => {
+test('placar mostra aluno em andamento antes de terminar o modulo', async ({ page }) => {
+  await startPlaySession(page);
+  await expect(page.getByText('Primeira pergunta')).toBeVisible();
+
+  await page.goto('/');
+  await page.locator('.module-rank-btn').click();
+
+  await expect(page.getByText('Aluno Teste').first()).toBeVisible();
+  await expect(page.getByText('Em andamento').first()).toBeVisible();
+});
+
+test('mostra aviso visual e tenta salvar novamente ao sair apos falha no salvamento final', async ({ page }) => {
   let postCount = 0;
+  let finalPatchCount = 0;
 
   await page.route('**/rest/v1/module_attempts*', async (route, request) => {
     if (request.method() === 'POST') {
       postCount++;
 
-      if (postCount === 1) {
-        await route.fulfill({
-          status: 500,
-          contentType: 'application/json',
-          body: JSON.stringify({ message: 'temporary failure' }),
-        });
-        return;
-      }
-
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify([{ id: `attempt-${postCount}` }]),
+      });
+      return;
+    }
+
+    if (request.method() === 'PATCH') {
+      const payload = request.postDataJSON();
+      const isFinalSave = payload?.completed === true && payload?.finished_at;
+
+      if (isFinalSave) {
+        finalPatchCount++;
+
+        if (finalPatchCount === 1) {
+          await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ message: 'temporary failure' }),
+          });
+          return;
+        }
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ id: 'attempt-1' }]),
       });
       return;
     }
@@ -274,5 +380,6 @@ test('mostra aviso visual e tenta salvar novamente ao sair apos falha no POST', 
   await page.getByRole('button', { name: 'Escolher Outro Modulo' }).click();
 
   await expect(page).toHaveURL(/#\/$/);
-  expect(postCount).toBe(2);
+  expect(postCount).toBe(1);
+  expect(finalPatchCount).toBe(2);
 });

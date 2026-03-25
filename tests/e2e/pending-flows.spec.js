@@ -882,6 +882,7 @@ test('placar mostra nao concluiu para tentativa salva com completed false', asyn
       score: 10,
       max_score: 30,
       completed: false,
+      finished_at: '2026-03-21T11:05:00.000Z',
       created_at: '2026-03-21T11:00:00.000Z',
     },
   ];
@@ -952,6 +953,7 @@ test('placar abre sem nome do aluno e mostra a classificacao completa da turma',
       score: 30,
       max_score: 30,
       completed: true,
+      finished_at: '2026-03-21T11:05:00.000Z',
       created_at: '2026-03-21T11:00:00.000Z',
     },
     {
@@ -963,6 +965,7 @@ test('placar abre sem nome do aluno e mostra a classificacao completa da turma',
       score: 25,
       max_score: 30,
       completed: true,
+      finished_at: '2026-03-21T10:05:00.000Z',
       created_at: '2026-03-21T10:00:00.000Z',
     },
     {
@@ -974,6 +977,7 @@ test('placar abre sem nome do aluno e mostra a classificacao completa da turma',
       score: 20,
       max_score: 30,
       completed: false,
+      finished_at: '2026-03-21T09:05:00.000Z',
       created_at: '2026-03-21T09:00:00.000Z',
     },
     {
@@ -985,6 +989,7 @@ test('placar abre sem nome do aluno e mostra a classificacao completa da turma',
       score: 15,
       max_score: 30,
       completed: false,
+      finished_at: '2026-03-21T08:05:00.000Z',
       created_at: '2026-03-21T08:00:00.000Z',
     },
   ];
@@ -1097,6 +1102,7 @@ test('placar permite trocar de turma depois de abrir o ranking', async ({ page }
             score: 20,
             max_score: 20,
             completed: true,
+            finished_at: '2026-03-21T11:02:00.000Z',
             created_at: '2026-03-21T11:00:00.000Z',
           },
         ]
@@ -1110,6 +1116,7 @@ test('placar permite trocar de turma depois de abrir o ranking', async ({ page }
             score: 10,
             max_score: 20,
             completed: false,
+            finished_at: '2026-03-21T11:02:00.000Z',
             created_at: '2026-03-21T11:00:00.000Z',
           },
         ];
@@ -1206,6 +1213,7 @@ test('placar pode mostrar todas as turmas e resume o filtro ativo', async ({ pag
             score: 10,
             max_score: 20,
             completed: false,
+            finished_at: '2026-03-21T11:02:00.000Z',
             created_at: '2026-03-21T11:00:00.000Z',
           },
         ]
@@ -1219,6 +1227,7 @@ test('placar pode mostrar todas as turmas e resume o filtro ativo', async ({ pag
             score: 10,
             max_score: 20,
             completed: false,
+            finished_at: '2026-03-21T11:02:00.000Z',
             created_at: '2026-03-21T11:00:00.000Z',
           },
           {
@@ -1230,6 +1239,7 @@ test('placar pode mostrar todas as turmas e resume o filtro ativo', async ({ pag
             score: 20,
             max_score: 20,
             completed: true,
+            finished_at: '2026-03-21T10:02:00.000Z',
             created_at: '2026-03-21T10:00:00.000Z',
           },
         ];

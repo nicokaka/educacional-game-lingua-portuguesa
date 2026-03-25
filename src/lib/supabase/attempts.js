@@ -1,6 +1,18 @@
 import { supabase } from './client.js';
 
 export const MODULE_LEADERBOARD_WINDOW_HOURS = 12;
+let supportsFinishedAtColumn = true;
+
+function isMissingColumnError(error, columnName, tableName) {
+  const message = error?.message || '';
+  return new RegExp(`Could not find the '${columnName}' column of '${tableName}'`, 'i').test(message);
+}
+
+function stripFinishedAt(payload) {
+  if (!payload || !Object.prototype.hasOwnProperty.call(payload, 'finished_at')) return payload;
+  const { finished_at, ...rest } = payload;
+  return rest;
+}
 
 function getLeaderboardWindowStart(period = '12h') {
   if (period === 'today') {
@@ -17,7 +29,7 @@ async function fetchLeaderboardAttemptRows(moduleId, filterClassroomId = '', per
 
   let query = supabase
     .from('module_attempts')
-    .select('id, student_name, classroom_id, classroom_name, score, max_score, completed, created_at')
+    .select('id, student_name, classroom_id, classroom_name, score, max_score, completed, finished_at, created_at')
     .eq('module_id', moduleId)
     .gte('created_at', getLeaderboardWindowStart(period));
 
@@ -54,13 +66,55 @@ async function fetchLeaderboardAttemptRows(moduleId, filterClassroomId = '', per
  * }} attempt
  */
 export async function createModuleAttempt(attempt) {
-  const { error } = await supabase
+  let payload = supportsFinishedAtColumn ? attempt : stripFinishedAt(attempt);
+  let { data, error } = await supabase
     .from('module_attempts')
-    .insert(attempt);
+    .insert(payload)
+    .select('id');
+
+  if (error && supportsFinishedAtColumn && isMissingColumnError(error, 'finished_at', 'module_attempts')) {
+    supportsFinishedAtColumn = false;
+    payload = stripFinishedAt(attempt);
+    ({ data, error } = await supabase
+      .from('module_attempts')
+      .insert(payload)
+      .select('id'));
+  }
 
   if (error) {
     throw new Error(`Erro ao salvar tentativa: ${error.message}`);
   }
+
+  return Array.isArray(data) ? data[0] || null : data || null;
+}
+
+export async function updateModuleAttempt(attemptId, patch) {
+  if (!attemptId) {
+    throw new Error('Nao foi possivel identificar a tentativa para atualizar.');
+  }
+
+  let payload = supportsFinishedAtColumn ? patch : stripFinishedAt(patch);
+  let { data, error } = await supabase
+    .from('module_attempts')
+    .update(payload)
+    .eq('id', attemptId)
+    .select('id');
+
+  if (error && supportsFinishedAtColumn && isMissingColumnError(error, 'finished_at', 'module_attempts')) {
+    supportsFinishedAtColumn = false;
+    payload = stripFinishedAt(patch);
+    ({ data, error } = await supabase
+      .from('module_attempts')
+      .update(payload)
+      .eq('id', attemptId)
+      .select('id'));
+  }
+
+  if (error) {
+    throw new Error(`Erro ao atualizar tentativa: ${error.message}`);
+  }
+
+  return Array.isArray(data) ? data[0] || null : data || null;
 }
 
 /**
@@ -83,10 +137,13 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
       student_name: attempt.student_name?.trim?.() || '',
       classroom_id: attempt.classroom_id || '',
       classroom_name: attempt.classroom_name || (attempt.classroom_id ? 'Turma removida ou indisponivel' : ''),
+      finished_at: attempt.finished_at || null,
     }))
     .sort((a, b) => {
       if (b.percentage !== a.percentage) return b.percentage - a.percentage;
-      if (Number(b.completed) !== Number(a.completed)) return Number(b.completed) - Number(a.completed);
+      const statusRankA = a.finished_at ? (a.completed ? 3 : 1) : 2;
+      const statusRankB = b.finished_at ? (b.completed ? 3 : 1) : 2;
+      if (statusRankB !== statusRankA) return statusRankB - statusRankA;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
