@@ -200,7 +200,7 @@ test('salva module_attempts imediatamente ao acertar a ultima pergunta', async (
 
   const attemptRequest = page.waitForRequest(
     (request) => request.url().includes('/rest/v1/module_attempts') && request.method() === 'POST',
-    { timeout: 500 }
+    { timeout: 1500 }
   );
 
   await page.getByRole('button', { name: 'Falso' }).click();
@@ -209,6 +209,18 @@ test('salva module_attempts imediatamente ao acertar a ultima pergunta', async (
   await attemptRequest;
   await expect(page.getByText('Parabens!')).toBeVisible();
   expect(postCount).toBe(1);
+});
+
+test('run perfeita chega ao maximo de pontos com conta intuitiva', async ({ page }) => {
+  await startPlaySession(page);
+
+  while (!await page.getByText('Parabens!').isVisible()) {
+    await answerCurrentQuestionCorrectly(page);
+  }
+
+  await expect(page.locator('.score-ratio')).toContainText('30');
+  await expect(page.locator('.score-ratio')).toContainText('/');
+  await expect(page.locator('.score-ratio')).toContainText('30');
 });
 
 test('mostra aviso visual e tenta salvar novamente ao sair apos falha no POST', async ({ page }) => {

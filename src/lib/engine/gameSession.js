@@ -63,9 +63,7 @@ export function advanceToNextChallengeState(state, nextChallenge, progress) {
 }
 
 export function applyCorrectAnswerState(state, challenge) {
-  const difficulty = challenge?.difficulty || 1;
-
-  state.score += 10 * difficulty * (1 + state.streak);
+  state.score += getChallengeScore(challenge);
   state.streak += 1;
   state.monsterHp = Math.max(0, state.monsterHp - getChallengeDamage(challenge));
   state.playerHp = Math.min(
@@ -88,8 +86,7 @@ export function applyWrongAnswerState(state, challenge) {
 }
 
 export function applyHintPenaltyState(state, challenge) {
-  const difficulty = challenge?.difficulty || 1;
-  const scorePenalty = 6 * difficulty;
+  const scorePenalty = Math.max(2, Math.round(getChallengeScore(challenge) * 0.4));
   const monsterHeal = Math.max(4, Math.round(getChallengeDamage(challenge) * 0.2));
   const playerDamage = Math.max(3, Math.round(getPlayerDamage(challenge) * 0.45));
 
@@ -108,6 +105,11 @@ export function applyHintPenaltyState(state, challenge) {
 export function getChallengeDamage(challenge) {
   const difficulty = challenge?.difficulty || 1;
   return 20 + difficulty * 15;
+}
+
+export function getChallengeScore(challenge) {
+  const difficulty = challenge?.difficulty || 1;
+  return 10 * difficulty;
 }
 
 export function getPlayerDamage(challenge) {
@@ -134,13 +136,7 @@ export function getModuleMaxScore(moduleData) {
   const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
   if (challenges.length === 0) return 0;
 
-  let streak = 0;
-  return challenges.reduce((total, challenge) => {
-    const difficulty = challenge?.difficulty || 1;
-    const score = 10 * difficulty * (1 + streak);
-    streak += 1;
-    return total + score;
-  }, 0);
+  return challenges.reduce((total, challenge) => total + getChallengeScore(challenge), 0);
 }
 
 export function getModuleMonster(moduleData) {
