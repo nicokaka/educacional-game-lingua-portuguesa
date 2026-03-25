@@ -319,9 +319,14 @@
 
 <div class="menu-screen">
   <div class="logo-section">
-    <h1 class="game-title">
-      <span class="title-alquimia">Alquimia</span>&nbsp;<span class="title-verbal">Verbal</span>
-    </h1>
+    <div class="game-title-wrap">
+      <div class="title-flame title-flame-left" aria-hidden="true"></div>
+      <div class="title-flame title-flame-center" aria-hidden="true"></div>
+      <div class="title-flame title-flame-right" aria-hidden="true"></div>
+      <h1 class="game-title">
+        <span class="title-alquimia">Alquimia</span>&nbsp;<span class="title-verbal">Verbal</span>
+      </h1>
+    </div>
     <p class="game-subtitle">Derrote os monstros da gramática!</p>
 
     <div class="quick-actions">
@@ -680,16 +685,74 @@
     gap: 0.5rem;
   }
 
+  .game-title-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 1.2rem 0.55rem;
+    isolation: isolate;
+  }
+
   .game-title {
     font-family: var(--font-title);
     font-size: clamp(2.5rem, 8vw, 4rem); /* Aumentei max para 4rem pra Macondo brilhar */
     font-weight: 400; /* Macondo não precisa de 800 */
     line-height: 1;
     letter-spacing: -0.02em;
+    position: relative;
+    z-index: 2;
+    text-shadow:
+      0 2px 10px rgba(15, 23, 42, 0.85),
+      0 0 18px rgba(15, 23, 42, 0.32);
   }
 
   .title-alquimia { color: var(--color-primary); }
   .title-verbal { color: var(--color-correct); }
+
+  .title-flame {
+    position: absolute;
+    z-index: 1;
+    pointer-events: none;
+    filter: blur(18px);
+    opacity: 0.74;
+    mix-blend-mode: screen;
+    animation: title-flame-wave 4.8s ease-in-out infinite;
+  }
+
+  .title-flame-left {
+    width: 180px;
+    height: 74px;
+    left: 4%;
+    top: 10%;
+    --flame-base-transform: rotate(-8deg);
+    transform: var(--flame-base-transform);
+    background: radial-gradient(circle at 50% 60%, rgba(251, 191, 36, 0.42), rgba(245, 158, 11, 0.14) 55%, transparent 78%);
+  }
+
+  .title-flame-center {
+    width: 240px;
+    height: 96px;
+    left: 50%;
+    top: -6%;
+    --flame-base-transform: translateX(-50%);
+    transform: var(--flame-base-transform);
+    background:
+      radial-gradient(circle at 50% 68%, rgba(250, 204, 21, 0.26), transparent 62%),
+      radial-gradient(circle at 50% 38%, rgba(96, 165, 250, 0.18), transparent 68%);
+    animation-delay: -1.4s;
+  }
+
+  .title-flame-right {
+    width: 170px;
+    height: 72px;
+    right: 5%;
+    top: 8%;
+    --flame-base-transform: rotate(7deg);
+    transform: var(--flame-base-transform);
+    background: radial-gradient(circle at 50% 60%, rgba(74, 222, 128, 0.34), rgba(56, 189, 248, 0.12) 58%, transparent 80%);
+    animation-delay: -2.6s;
+  }
 
   .game-subtitle {
     font-size: 1.1rem;
@@ -1277,6 +1340,17 @@
     color: var(--color-text);
   }
 
+  @keyframes title-flame-wave {
+    0%, 100% {
+      transform: var(--flame-base-transform) translateY(0) scale(1);
+      opacity: 0.62;
+    }
+    50% {
+      transform: var(--flame-base-transform) translateY(-5px) scale(1.08);
+      opacity: 0.9;
+    }
+  }
+
   @keyframes help-pop {
     from {
       transform: translateY(8px) scale(0.98);
@@ -1319,6 +1393,21 @@
 
     .game-title {
       font-size: clamp(2rem, 7vw, 3rem);
+    }
+
+    .game-title-wrap {
+      padding: 0.18rem 0.7rem 0.35rem;
+    }
+
+    .title-flame-left,
+    .title-flame-right {
+      width: 120px;
+      height: 56px;
+    }
+
+    .title-flame-center {
+      width: 180px;
+      height: 74px;
     }
 
     .game-subtitle {
