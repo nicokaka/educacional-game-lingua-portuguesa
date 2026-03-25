@@ -68,7 +68,7 @@ export function applyCorrectAnswerState(state, challenge) {
   state.monsterHp = Math.max(0, state.monsterHp - getChallengeDamage(challenge));
   state.playerHp = Math.min(
     state.maxPlayerHp,
-    state.playerHp + Math.max(4, Math.round(getPlayerDamage(challenge) * 0.18))
+    state.playerHp + Math.max(5, Math.round(getPlayerDamage(challenge) * 0.28))
   );
 }
 
@@ -87,8 +87,8 @@ export function applyWrongAnswerState(state, challenge) {
 
 export function applyHintPenaltyState(state, challenge) {
   const scorePenalty = Math.max(2, Math.round(getChallengeScore(challenge) * 0.4));
-  const monsterHeal = Math.max(4, Math.round(getChallengeDamage(challenge) * 0.2));
-  const playerDamage = Math.max(3, Math.round(getPlayerDamage(challenge) * 0.45));
+  const monsterHeal = Math.max(4, Math.round(getChallengeDamage(challenge) * 0.16));
+  const playerDamage = Math.max(3, Math.round(getPlayerDamage(challenge) * 0.32));
 
   state.score = Math.max(0, state.score - scorePenalty);
   state.monsterHp = Math.min(state.maxMonsterHp, state.monsterHp + monsterHeal);
@@ -114,7 +114,7 @@ export function getChallengeScore(challenge) {
 
 export function getPlayerDamage(challenge) {
   const difficulty = challenge?.difficulty || 1;
-  return 12 + difficulty * 8;
+  return 10 + difficulty * 6;
 }
 
 export function getModuleMonsterHp(moduleData) {
@@ -128,8 +128,8 @@ export function getModulePlayerHp(moduleData) {
   const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
   if (challenges.length === 0) return 100;
 
-  // Energia suficiente para permitir erros sem tornar o jogo trivial.
-  return challenges.reduce((total, challenge) => total + Math.max(8, Math.round(getPlayerDamage(challenge) * 0.6)), 0);
+  // Reserva de vida mais generosa para sustentar erros sem deixar a partida trivial.
+  return challenges.reduce((total, challenge) => total + Math.max(10, Math.round(getPlayerDamage(challenge) * 0.8)), 0);
 }
 
 export function getModuleMaxScore(moduleData) {

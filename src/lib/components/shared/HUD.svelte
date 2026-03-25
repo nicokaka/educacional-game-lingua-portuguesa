@@ -63,7 +63,7 @@
 
     <!-- Streak -->
     <div class="stat-block">
-      <span class="stat-label">Combo</span>
+      <span class="stat-label">Sequencia</span>
       <span class="stat-value streak-value" class:on-fire={streak >= 3}>
         {#if streak >= 3}🔥{/if}
         x{streak}

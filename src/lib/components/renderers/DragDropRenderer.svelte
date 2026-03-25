@@ -18,7 +18,7 @@
     height: 0,
   });
 
-  let dropZoneEl = null;
+  let dropZoneEl = $state(null);
   let dragPointerId = null;
   let dragOffset = { x: 0, y: 0 };
   let dragStartPoint = { x: 0, y: 0 };

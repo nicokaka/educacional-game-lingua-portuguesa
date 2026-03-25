@@ -86,7 +86,6 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
     }))
     .sort((a, b) => {
       if (b.percentage !== a.percentage) return b.percentage - a.percentage;
-      if (b.score !== a.score) return b.score - a.score;
       if (Number(b.completed) !== Number(a.completed)) return Number(b.completed) - Number(a.completed);
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
