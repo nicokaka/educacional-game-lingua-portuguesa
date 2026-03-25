@@ -496,3 +496,49 @@ test('faz fallback ao salvar resposta aberta quando o banco ainda nao conhece st
   expect(firstPayload?.student_access_id).toBeTruthy();
   expect(retryPayload?.student_access_id).toBeFalsy();
 });
+
+test('campo de resposta aberta ativa suporte nativo para acentuacao em portugues', async ({ page }) => {
+  let responseCount = 0;
+  let attemptCount = 0;
+  let openTextResponses = [];
+  let moduleAttempts = [];
+
+  await mockBaseOpenTextFlow(page, {
+    get responseCount() {
+      return responseCount;
+    },
+    set responseCount(value) {
+      responseCount = value;
+    },
+    get attemptCount() {
+      return attemptCount;
+    },
+    set attemptCount(value) {
+      attemptCount = value;
+    },
+    get openTextResponses() {
+      return openTextResponses;
+    },
+    set openTextResponses(value) {
+      openTextResponses = value;
+    },
+    get moduleAttempts() {
+      return moduleAttempts;
+    },
+    set moduleAttempts(value) {
+      moduleAttempts = value;
+    },
+  });
+
+  await page.goto('/');
+  await page.locator('.module-card').filter({ hasText: 'Modulo Resposta Aberta' }).click();
+  await page.getByLabel('Turma').selectOption({ label: CLASSROOM_A.name });
+  await page.locator('#student-name-input').fill('Alex');
+  await page.getByRole('button', { name: 'Comecar' }).click();
+
+  const textarea = page.getByPlaceholder('Escreva sua resposta aqui...');
+  await expect(textarea).toHaveAttribute('lang', 'pt-BR');
+  await expect(textarea).toHaveAttribute('autocapitalize', 'sentences');
+  await expect(textarea).toHaveAttribute('autocorrect', 'on');
+  await expect(page.getByText('seu navegador pode sugerir acentos e correcoes em portugues.')).toBeVisible();
+});

@@ -611,8 +611,6 @@
           class="ending-professor victory-professor"
         />
       </div>
-      <h2 class="victory-title">Parabens!</h2>
-      <p class="victory-subtitle">Voce derrotou todos os monstros!</p>
 
       <div class="victory-stats">
         <div class="stat-card">
@@ -654,10 +652,6 @@
           class="ending-professor lost-professor"
         />
       </div>
-      <h2 class="game-over-title">Quase la!</h2>
-      <p class="game-over-subtitle">
-        O monstro venceu esta rodada. Respira, revisa o bizu e tenta de novo.
-      </p>
 
       <div class="victory-stats">
         <div class="stat-card">

@@ -232,7 +232,8 @@
           </div>
 
           <div class="detail-block">
-            <p class="detail-label">Resposta do aluno</p>
+            <p class="detail-label">Resposta original do aluno</p>
+            <p class="detail-hint">Este texto aparece exatamente como foi enviado no jogo.</p>
             <div class="response-text-box">{selectedResponse.response_text}</div>
           </div>
 
@@ -445,6 +446,13 @@
     font-size: 0.98rem;
     line-height: 1.6;
     white-space: pre-wrap;
+  }
+
+  .detail-hint {
+    margin: 0.2rem 0 0.55rem;
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
   }
 
   .response-text-box,

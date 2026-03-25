@@ -46,12 +46,19 @@
 
 <div class="renderer open-text-renderer">
   <p class="challenge-prompt">{challenge.prompt}</p>
+  <p class="input-helper">
+    Escreva com calma: seu navegador pode sugerir acentos e correcoes em portugues.
+  </p>
 
   <textarea
     class="open-text-input"
     bind:value={responseText}
     placeholder="Escreva sua resposta aqui..."
     rows="7"
+    lang="pt-BR"
+    spellcheck={true}
+    autocapitalize="sentences"
+    autocorrect="on"
     disabled={sending || submitted}
   ></textarea>
 
@@ -80,6 +87,15 @@
     color: var(--color-text, #e2e8f0);
     line-height: 1.6;
     max-width: 620px;
+  }
+
+  .input-helper {
+    max-width: 620px;
+    margin: -0.35rem 0 -0.15rem;
+    color: var(--color-muted, #94a3b8);
+    font-size: 0.92rem;
+    line-height: 1.45;
+    text-align: center;
   }
 
   .open-text-input {
