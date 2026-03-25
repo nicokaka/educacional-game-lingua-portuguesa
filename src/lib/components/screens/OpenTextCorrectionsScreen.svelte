@@ -1,10 +1,12 @@
-<script>
+  <script>
   import { navigate } from '../../router.svelte.js';
   import { fetchStudentOpenTextResponses } from '../../supabase/writtenResponses.js';
-
-  const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
-  const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
-  const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
+  import {
+    getSavedStudentAccessId,
+    getSavedStudentName,
+    getSavedClassroomId,
+    getSavedClassroomName,
+  } from '../../studentIdentity.js';
 
   let studentName = $state('');
   let classroomName = $state('');
@@ -12,21 +14,6 @@
   let loading = $state(true);
   let error = $state('');
   let latestRequestToken = 0;
-
-  function getSavedStudentName() {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim() || '';
-  }
-
-  function getSavedClassroomId() {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim() || '';
-  }
-
-  function getSavedClassroomName() {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem(CLASSROOM_NAME_KEY)?.trim() || '';
-  }
 
   function goToMenu() {
     navigate('/');
@@ -75,11 +62,12 @@
   }
 
   async function loadResponses() {
+    const currentAccessId = getSavedStudentAccessId();
     const currentName = getSavedStudentName();
     const currentClassroomId = getSavedClassroomId();
     const currentClassroomName = getSavedClassroomName();
 
-    if (!currentName || !currentClassroomId) {
+    if ((!currentAccessId && !currentName) || !currentClassroomId) {
       navigate('/');
       return;
     }
@@ -91,7 +79,11 @@
     error = '';
 
     try {
-      const data = await fetchStudentOpenTextResponses(currentName, currentClassroomId);
+      const data = await fetchStudentOpenTextResponses({
+        studentAccessId: currentAccessId,
+        studentName: currentName,
+        classroomId: currentClassroomId,
+      });
       if (requestId !== latestRequestToken) return;
       responses = data;
     } catch (err) {

@@ -3,10 +3,19 @@
   import { fetchModules } from '../../supabase/modules.js';
   import { fetchModuleLeaderboard, MODULE_LEADERBOARD_WINDOW_HOURS } from '../../supabase/attempts.js';
   import { fetchActiveClassrooms } from '../../supabase/classrooms.js';
-
-  const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
-  const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
-  const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
+  import {
+    STUDENT_NAME_KEY,
+    CLASSROOM_ID_KEY,
+    CLASSROOM_NAME_KEY,
+    STUDENT_ACCESS_ID_KEY,
+    getSavedStudentName,
+    getSavedClassroomId,
+    getSavedClassroomName,
+    getSavedStudentAccessId,
+    getRecentStudentProfiles,
+    rememberStudentProfile,
+    activateStudentProfile,
+  } from '../../studentIdentity.js';
   const ALL_CLASSROOMS_VALUE = '__all__';
 
   let modules = $state([]);
@@ -23,6 +32,8 @@
   let studentName = $state('');
   let studentNameError = $state('');
   let studentNameInput = $state();
+  let reviewProfiles = $state([]);
+  let selectedReviewAccessId = $state('');
   let showLeaderboardModal = $state(false);
   let leaderboardLoading = $state(false);
   let leaderboardError = $state('');
@@ -79,20 +90,19 @@
     return () => clearTimeout(focusTimer);
   });
 
-  function getSavedStudentName() {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem(STUDENT_NAME_KEY) || '';
-  }
+  $effect(() => {
+    if (!showStudentModal || studentModalMode !== 'reviews') {
+      reviewProfiles = [];
+      selectedReviewAccessId = '';
+      return;
+    }
 
-  function getSavedClassroomId() {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem(CLASSROOM_ID_KEY) || '';
-  }
-
-  function getSavedClassroomName() {
-    if (typeof window === 'undefined') return '';
-    return window.sessionStorage.getItem(CLASSROOM_NAME_KEY) || '';
-  }
+    reviewProfiles = getRecentStudentProfiles(selectedClassroomId);
+    const savedAccessId = getSavedStudentAccessId();
+    if (!selectedReviewAccessId && savedAccessId && reviewProfiles.some((profile) => profile.accessId === savedAccessId)) {
+      selectedReviewAccessId = savedAccessId;
+    }
+  });
 
   function openStudentModal(moduleId = '', mode = 'play') {
     selectedModuleId = moduleId;
@@ -103,6 +113,7 @@
       ? (leaderboardClassroomId || (classrooms.some((classroom) => classroom.id === savedClassroomId) ? savedClassroomId : ALL_CLASSROOMS_VALUE))
       : (classrooms.some((classroom) => classroom.id === savedClassroomId) ? savedClassroomId : classrooms[0]?.id || '');
     studentNameError = '';
+    selectedReviewAccessId = mode === 'reviews' ? getSavedStudentAccessId() : '';
     showStudentModal = true;
   }
 
@@ -113,6 +124,8 @@
     selectedClassroomId = '';
     studentNameError = '';
     pendingLeaderboardModule = null;
+    reviewProfiles = [];
+    selectedReviewAccessId = '';
   }
 
   function playModule(id) {
@@ -120,12 +133,20 @@
   }
 
   function openStudentReviews() {
-    if (getSavedStudentName().trim() && getSavedClassroomId().trim()) {
+    if ((getSavedStudentAccessId().trim() || getSavedStudentName().trim()) && getSavedClassroomId().trim()) {
       navigate('/reviews');
       return;
     }
 
     openStudentModal('', 'reviews');
+  }
+
+  function selectReviewProfile(profile) {
+    selectedClassroomId = profile.classroomId;
+    studentName = profile.studentName;
+    selectedReviewAccessId = profile.accessId;
+    studentNameError = '';
+    activateStudentProfile(profile);
   }
 
   function confirmStudentName(event) {
@@ -158,8 +179,22 @@
 
     if (typeof window !== 'undefined') {
       if (!useAllClassrooms && selectedClassroom) {
-        window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
-        window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
+        if (modalMode === 'leaderboard') {
+          window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
+          window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
+        } else if (modalMode === 'play') {
+          rememberStudentProfile({
+            studentName: trimmedName,
+            classroomId: selectedClassroom.id,
+            classroomName: selectedClassroom.name,
+          });
+        } else {
+          window.sessionStorage.setItem(CLASSROOM_ID_KEY, selectedClassroom.id);
+          window.sessionStorage.setItem(CLASSROOM_NAME_KEY, selectedClassroom.name);
+          if (!selectedReviewAccessId) {
+            window.sessionStorage.removeItem(STUDENT_ACCESS_ID_KEY);
+          }
+        }
       }
 
       if (trimmedName) {
@@ -483,7 +518,7 @@
 
         <p class="student-copy">
           {studentModalMode === 'reviews'
-            ? 'Digite seu nome para consultar suas respostas abertas corrigidas.'
+            ? 'Escolha sua turma e use seu nome. Se este aparelho ja foi usado antes, voce pode tocar no seu perfil salvo para evitar erro de digitacao.'
             : studentModalMode === 'leaderboard'
               ? 'Escolha a turma. O nome e opcional.'
               : 'Digite seu nome para entrar no modulo.'}
@@ -512,6 +547,25 @@
           {/if}
         </div>
 
+        {#if studentModalMode === 'reviews' && selectedClassroomId && reviewProfiles.length > 0}
+          <div class="student-field">
+            <label class="field-label">Perfis usados neste aparelho</label>
+            <div class="student-profile-list">
+              {#each reviewProfiles as profile (profile.accessId)}
+                <button
+                  type="button"
+                  class:active={selectedReviewAccessId === profile.accessId}
+                  class="student-profile-chip"
+                  onclick={() => selectReviewProfile(profile)}
+                >
+                  {profile.studentName}
+                </button>
+              {/each}
+            </div>
+            <p class="student-helper">Se voce esqueceu como escreveu seu nome antes, toque em um perfil salvo da turma.</p>
+          </div>
+        {/if}
+
         <div class="student-field">
           <label class="field-label" for="student-name-input">
             {studentModalMode === 'leaderboard' ? 'Nome do aluno (opcional)' : 'Nome do aluno'}
@@ -521,9 +575,20 @@
             class="student-input"
             bind:value={studentName}
             bind:this={studentNameInput}
+            oninput={() => {
+              if (studentModalMode === 'reviews') {
+                selectedReviewAccessId = '';
+                if (typeof window !== 'undefined') {
+                  window.sessionStorage.removeItem(STUDENT_ACCESS_ID_KEY);
+                }
+              }
+            }}
             placeholder="Ex.: Maria Souza"
             maxlength="80"
           />
+          {#if studentModalMode === 'reviews'}
+            <p class="student-helper">As correcoes ficam mais faceis de encontrar quando voce usa sempre o mesmo nome.</p>
+          {/if}
         </div>
 
         {#if studentNameError}
@@ -1297,6 +1362,30 @@
     font-size: 0.82rem;
     color: var(--color-muted);
     line-height: 1.45;
+  }
+
+  .student-profile-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+  }
+
+  .student-profile-chip {
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.52);
+    color: #dbeafe;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+    transition: border-color var(--transition-fast), transform var(--transition-fast), background var(--transition-fast);
+  }
+
+  .student-profile-chip:hover,
+  .student-profile-chip.active {
+    border-color: rgba(56, 189, 248, 0.7);
+    background: rgba(56, 189, 248, 0.16);
+    transform: translateY(-1px);
   }
 
   .student-select {

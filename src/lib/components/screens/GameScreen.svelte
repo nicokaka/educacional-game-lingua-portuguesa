@@ -6,15 +6,18 @@
   import { initAudio, playSound } from '../../engine/feedbackEngine.js';
   import { createModuleAttempt } from '../../supabase/attempts.js';
   import { createOpenTextResponse } from '../../supabase/writtenResponses.js';
+  import {
+    STUDENT_NAME_KEY,
+    CLASSROOM_ID_KEY,
+    CLASSROOM_NAME_KEY,
+    STUDENT_ACCESS_ID_KEY,
+  } from '../../studentIdentity.js';
   import ChallengeHost from '../ChallengeHost.svelte';
   import HUD from '../shared/HUD.svelte';
   import MonsterSvg from './MonsterSvg.svelte';
   import { navigate } from '../../router.svelte.js';
 
   const LOAD_TIMEOUT_MS = 12000;
-  const STUDENT_NAME_KEY = 'alquimia-verbal:student-name';
-  const CLASSROOM_ID_KEY = 'alquimia-verbal:classroom-id';
-  const CLASSROOM_NAME_KEY = 'alquimia-verbal:classroom-name';
   let { moduleId } = $props();
 
   let game = getState();
@@ -319,6 +322,9 @@
     const classroomName = typeof window !== 'undefined'
       ? window.sessionStorage.getItem(CLASSROOM_NAME_KEY)?.trim()
       : '';
+    const studentAccessId = typeof window !== 'undefined'
+      ? window.sessionStorage.getItem(STUDENT_ACCESS_ID_KEY)?.trim()
+      : '';
 
     if (!challenge) {
       return { submitted: false, message: 'Desafio indisponivel no momento.' };
@@ -343,6 +349,7 @@
         challenge_id: challenge.challengeRecordId,
         classroom_id: classroomId,
         classroom_name: classroomName || '',
+        student_access_id: studentAccessId || '',
         student_name: studentName,
         response_text: responseText,
         status: 'pending',

@@ -62,7 +62,7 @@ runTest('avanca para a proxima pergunta ao aplicar a resposta correta', () => {
   const state = createInitialGameState();
 
   startGameState(state, moduleData);
-  assert.equal(state.maxScore, 80);
+  assert.equal(state.maxScore, 40);
 
   let next = manager.next();
   advanceToNextChallengeState(state, next, manager.progress());

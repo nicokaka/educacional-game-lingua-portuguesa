@@ -7,6 +7,7 @@ import { supabase } from './client.js';
  *   challenge_id: string,
  *   classroom_id?: string,
  *   classroom_name?: string,
+ *   student_access_id?: string,
  *   student_name: string,
  *   response_text: string,
  *   status: string
@@ -103,20 +104,27 @@ export async function deleteOpenTextResponse(responseId) {
 
 /**
  * Busca respostas abertas do aluno com enriquecimento de modulo e pergunta.
- * @param {string} studentName
+ * @param {{ studentAccessId?: string, studentName?: string, classroomId?: string }} filters
  */
-export async function fetchStudentOpenTextResponses(studentName, classroomId = '') {
+async function fetchStudentResponseRows(studentAccessId, studentName, classroomId = '') {
+  const trimmedAccessId = studentAccessId?.trim?.() || '';
   const trimmedName = studentName?.trim?.() || '';
   const trimmedClassroomId = classroomId?.trim?.() || '';
-  if (!trimmedName) return [];
+
+  if (!trimmedAccessId && !trimmedName) return [];
 
   let query = supabase
     .from('open_text_responses')
-    .select('id, module_id, challenge_id, classroom_id, classroom_name, student_name, response_text, status, teacher_feedback, created_at, reviewed_at')
-    .eq('student_name', trimmedName)
+    .select('id, module_id, challenge_id, classroom_id, classroom_name, student_name, student_access_id, response_text, status, teacher_feedback, created_at, reviewed_at')
     .order('created_at', { ascending: false });
 
-  if (trimmedClassroomId) {
+  if (trimmedAccessId) {
+    query = query.eq('student_access_id', trimmedAccessId);
+  } else {
+    query = query.eq('student_name', trimmedName);
+  }
+
+  if (!trimmedAccessId && trimmedClassroomId) {
     query = query.or(`classroom_id.eq.${trimmedClassroomId},classroom_id.is.null`);
   }
 
@@ -124,6 +132,23 @@ export async function fetchStudentOpenTextResponses(studentName, classroomId = '
 
   if (responseError) {
     throw new Error(`Erro ao carregar suas respostas: ${responseError.message}`);
+  }
+
+  return responseRows || [];
+}
+
+export async function fetchStudentOpenTextResponses(filters = {}) {
+  const trimmedAccessId = filters?.studentAccessId?.trim?.() || '';
+  const trimmedName = filters?.studentName?.trim?.() || '';
+  const trimmedClassroomId = filters?.classroomId?.trim?.() || '';
+
+  if (!trimmedAccessId && !trimmedName) return [];
+
+  let responseRows = await fetchStudentResponseRows(trimmedAccessId, trimmedName, trimmedClassroomId);
+
+  // Compatibilidade com respostas antigas que ainda nao possuem student_access_id.
+  if (trimmedAccessId && responseRows.length === 0 && trimmedName) {
+    responseRows = await fetchStudentResponseRows('', trimmedName, trimmedClassroomId);
   }
 
   const challengeIds = [...new Set((responseRows || []).map((row) => row.challenge_id).filter(Boolean))];

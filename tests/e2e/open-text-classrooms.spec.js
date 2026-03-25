@@ -104,12 +104,7 @@ async function finishRun(page, responseText) {
   await expect(page.getByText('Parabens!')).toBeVisible();
 }
 
-test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking separado', async ({ page }) => {
-  let responseCount = 0;
-  let attemptCount = 0;
-  let openTextResponses = [];
-  let moduleAttempts = [];
-
+async function mockBaseOpenTextFlow(page, state) {
   await page.route('**/rest/v1/classrooms*', async (route, request) => {
     if (request.method() !== 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
@@ -166,20 +161,21 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
 
     if (method === 'POST') {
       const rows = toRows(request.postDataJSON()).map((row) => ({
-        id: `response-${++responseCount}`,
+        id: `response-${++state.responseCount}`,
         module_id: row.module_id,
         challenge_id: row.challenge_id,
         classroom_id: row.classroom_id || null,
         classroom_name: row.classroom_name || '',
+        student_access_id: row.student_access_id || '',
         student_name: row.student_name,
         response_text: row.response_text,
         status: row.status || 'pending',
         teacher_feedback: row.teacher_feedback || '',
         reviewed_at: row.reviewed_at || null,
-        created_at: `2026-03-21T10:00:0${responseCount}.000Z`,
+        created_at: `2026-03-21T10:00:0${state.responseCount}.000Z`,
       }));
 
-      openTextResponses = [...rows, ...openTextResponses];
+      state.openTextResponses = [...rows, ...state.openTextResponses];
 
       await route.fulfill({
         status: 201,
@@ -193,7 +189,7 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
       const responseId = getEqParam(url, 'id');
       const payload = request.postDataJSON();
 
-      openTextResponses = openTextResponses.map((row) =>
+      state.openTextResponses = state.openTextResponses.map((row) =>
         row.id === responseId ? { ...row, ...payload } : row
       );
 
@@ -207,7 +203,7 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
 
     if (method === 'DELETE') {
       const responseId = getEqParam(url, 'id');
-      openTextResponses = openTextResponses.filter((row) => row.id !== responseId);
+      state.openTextResponses = state.openTextResponses.filter((row) => row.id !== responseId);
 
       await route.fulfill({
         status: 200,
@@ -220,21 +216,24 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
     if (method === 'GET') {
       const moduleId = getEqParam(url, 'module_id');
       const studentName = getEqParam(url, 'student_name');
+      const studentAccessId = getEqParam(url, 'student_access_id');
       const rawOrFilter = url.searchParams.get('or') || '';
       const classroomMatch = rawOrFilter.match(/classroom_id\.eq\.([^,)\s]+)/);
       const classroomId = classroomMatch?.[1] || '';
 
-      let rows = [...openTextResponses];
+      let rows = [...state.openTextResponses];
 
       if (moduleId) {
         rows = rows.filter((row) => row.module_id === moduleId);
       }
 
-      if (studentName) {
+      if (studentAccessId) {
+        rows = rows.filter((row) => row.student_access_id === studentAccessId);
+      } else if (studentName) {
         rows = rows.filter((row) => row.student_name === studentName);
       }
 
-      if (classroomId) {
+      if (!studentAccessId && classroomId) {
         rows = rows.filter((row) => row.classroom_id === classroomId || row.classroom_id == null);
       }
 
@@ -258,11 +257,11 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
     if (method === 'POST') {
       const rows = toRows(request.postDataJSON()).map((row) => ({
         ...row,
-        id: `attempt-${++attemptCount}`,
-        created_at: `2026-03-21T11:00:0${attemptCount}.000Z`,
+        id: `attempt-${++state.attemptCount}`,
+        created_at: `2026-03-21T11:00:0${state.attemptCount}.000Z`,
       }));
 
-      moduleAttempts = [...rows, ...moduleAttempts];
+      state.moduleAttempts = [...rows, ...state.moduleAttempts];
 
       await route.fulfill({
         status: 201,
@@ -275,8 +274,8 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
     if (method === 'GET') {
       const moduleId = getEqParam(url, 'module_id');
       const rows = moduleId
-        ? moduleAttempts.filter((row) => row.module_id === moduleId)
-        : moduleAttempts;
+        ? state.moduleAttempts.filter((row) => row.module_id === moduleId)
+        : state.moduleAttempts;
 
       await route.fulfill({
         status: 200,
@@ -287,6 +286,39 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
     }
 
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+  });
+}
+
+test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking separado', async ({ page }) => {
+  let responseCount = 0;
+  let attemptCount = 0;
+  let openTextResponses = [];
+  let moduleAttempts = [];
+  await mockBaseOpenTextFlow(page, {
+    get responseCount() {
+      return responseCount;
+    },
+    set responseCount(value) {
+      responseCount = value;
+    },
+    get attemptCount() {
+      return attemptCount;
+    },
+    set attemptCount(value) {
+      attemptCount = value;
+    },
+    get openTextResponses() {
+      return openTextResponses;
+    },
+    set openTextResponses(value) {
+      openTextResponses = value;
+    },
+    get moduleAttempts() {
+      return moduleAttempts;
+    },
+    set moduleAttempts(value) {
+      moduleAttempts = value;
+    },
   });
 
   await startRunFromMenu(page, CLASSROOM_A.name, 'Alex', 'Resposta da turma A');
@@ -323,7 +355,63 @@ test('fecha o ciclo de resposta aberta com turma, correcao, exclusao e ranking s
 
   await page.getByRole('button', { name: /Voltar/i }).click();
   await page.getByRole('button', { name: /placar/i }).click();
+  await page.getByRole('button', { name: 'Trocar filtro' }).click();
+  await page.getByLabel('Turma').selectOption({ label: 'Todas as turmas' });
+  await page.locator('#student-name-input').fill('');
+  await page.getByRole('button', { name: 'Ver placar' }).click();
 
   await expect(page.getByText(CLASSROOM_A.name).first()).toBeVisible();
   await expect(page.getByText(CLASSROOM_B.name).first()).toBeVisible();
+});
+
+test('permite ver correcoes escolhendo um perfil salvo quando o aluno esquece o nome', async ({ page }) => {
+  let responseCount = 0;
+  let attemptCount = 0;
+  let openTextResponses = [];
+  let moduleAttempts = [];
+
+  await mockBaseOpenTextFlow(page, {
+    get responseCount() {
+      return responseCount;
+    },
+    set responseCount(value) {
+      responseCount = value;
+    },
+    get attemptCount() {
+      return attemptCount;
+    },
+    set attemptCount(value) {
+      attemptCount = value;
+    },
+    get openTextResponses() {
+      return openTextResponses;
+    },
+    set openTextResponses(value) {
+      openTextResponses = value;
+    },
+    get moduleAttempts() {
+      return moduleAttempts;
+    },
+    set moduleAttempts(value) {
+      moduleAttempts = value;
+    },
+  });
+
+  await startRunFromMenu(page, CLASSROOM_A.name, 'Alex', 'Resposta guardada para revisao');
+
+  await page.evaluate(() => {
+    window.sessionStorage.removeItem('alquimia-verbal:student-name');
+    window.sessionStorage.removeItem('alquimia-verbal:student-access-id');
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: /Ver minhas corre/i }).click();
+  await page.getByLabel('Turma').selectOption({ label: CLASSROOM_A.name });
+
+  await expect(page.getByRole('button', { name: 'Alex' })).toBeVisible();
+  await page.getByRole('button', { name: 'Alex' }).click();
+  await page.getByRole('button', { name: 'Ver correções' }).click();
+
+  await expect(page.getByText('Resposta guardada para revisao')).toBeVisible();
+  await expect(page.getByText('Ano 7 - Turma A').first()).toBeVisible();
 });

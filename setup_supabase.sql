@@ -49,6 +49,7 @@ CREATE TABLE open_text_responses (
   challenge_id UUID NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
   classroom_id UUID REFERENCES classrooms(id) ON DELETE SET NULL,
   classroom_name TEXT,
+  student_access_id TEXT,
   student_name TEXT NOT NULL,
   response_text TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
@@ -74,6 +75,7 @@ CREATE TABLE module_attempts (
 CREATE INDEX idx_classrooms_active_sort_order ON classrooms(active, sort_order, created_at);
 CREATE INDEX idx_challenges_module_id ON challenges(module_id);
 CREATE INDEX idx_module_attempts_module_id ON module_attempts(module_id);
+CREATE INDEX idx_open_text_responses_student_access_id ON open_text_responses(student_access_id);
 
 -- Trigger para auto-update de updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
