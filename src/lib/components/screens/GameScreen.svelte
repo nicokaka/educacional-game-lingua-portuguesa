@@ -1,4 +1,4 @@
-﻿<script>
+<script>
   import { getState, startGame, submitAnswer, requestHint, resetToMenu, loadNextChallenge } from '../../stores/gameStore.svelte.js';
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';

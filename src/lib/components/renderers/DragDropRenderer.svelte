@@ -1,4 +1,4 @@
-﻿<script>
+<script>
   import './renderer-shared.css';
   let { challenge, onAnswer, onHint } = $props();
 
