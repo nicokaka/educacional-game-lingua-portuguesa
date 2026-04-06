@@ -1,0 +1,109 @@
+/*
+ * renderer-shared.css
+ * Estilos compartilhados entre todos os challenge renderers.
+ * Importado por: DragDropRenderer, MultipleChoiceRenderer,
+ *               TrueFalseRenderer, OrderingRenderer.
+ *
+ * Centraliza aqui qualquer estilo que seja IGUAL nos 4 renderers
+ * para evitar DRY violations e facilitar manutenção.
+ */
+
+/* ── Botão de confirmar resposta ── */
+.renderer .confirm-btn {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--color-primary, #8b5cf6);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.renderer .confirm-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover, #7c3aed);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+}
+
+.renderer .confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── Linha do botão de bizu ── */
+.renderer .hint-row {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Botão de bizu (💡) ── */
+.renderer .hint-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: rgba(250, 204, 21, 0.12);
+  color: #fde68a;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.renderer .hint-btn:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.04);
+  background: rgba(250, 204, 21, 0.18);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
+}
+
+.renderer .hint-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* ── Caixa de bizu do professor ── */
+.renderer .bizu-box {
+  width: 100%;
+  max-width: 640px;
+  padding: 1rem 1.15rem;
+  border-radius: 16px;
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  border-left: 4px solid #facc15;
+  background: linear-gradient(
+    135deg,
+    rgba(250, 204, 21, 0.18),
+    rgba(251, 191, 36, 0.08) 45%,
+    rgba(15, 23, 42, 0.25)
+  );
+  color: #fef3c7;
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.2);
+  animation: bizu-enter 0.25s ease;
+}
+
+.renderer .bizu-label {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  color: #fde68a;
+}
+
+.renderer .bizu-box p {
+  line-height: 1.6;
+  font-size: 0.98rem;
+}
+
+@keyframes bizu-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

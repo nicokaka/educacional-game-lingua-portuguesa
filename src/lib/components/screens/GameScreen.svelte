@@ -1,4 +1,4 @@
-<script>
+﻿<script>
   import { getState, startGame, submitAnswer, requestHint, resetToMenu, loadNextChallenge } from '../../stores/gameStore.svelte.js';
   import { fetchModuleWithChallenges } from '../../supabase/modules.js';
   import { createChallengeManager } from '../../engine/challengeManager.js';
@@ -592,14 +592,12 @@
       </div>
     </div>
 
-    {#key `${game.progress.current}-${game.currentChallenge?.id || 'no-id'}`}
     {#key game.questionSerial}
       <ChallengeHost
         challenge={game.currentChallenge}
         onAnswer={handleAnswer}
         onHint={handleHint}
       />
-    {/key}
     {/key}
 
   {:else if game.phase === 'victory'}
@@ -1156,3 +1154,4 @@
   }
 
 </style>
+

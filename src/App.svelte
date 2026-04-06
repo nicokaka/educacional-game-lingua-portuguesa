@@ -11,7 +11,7 @@
   let showStudentParticles = $derived(router.route !== 'editor');
 </script>
 
-<div id="app">
+<div class="app-root">
   {#if showStudentParticles}
     <ParticlesBackground />
   {/if}

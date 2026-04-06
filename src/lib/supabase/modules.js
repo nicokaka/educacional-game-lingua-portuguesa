@@ -146,6 +146,7 @@ export async function updateModule(moduleId, moduleData, challenges) {
 
   const existingIds = new Set((existingChallengeRows || []).map((row) => row.id));
   const keptIds = new Set();
+  const rowsToUpdate = []; // { id, payload }
   const rowsToInsert = [];
 
   for (const [index, challenge] of challenges.entries()) {
@@ -154,20 +155,22 @@ export async function updateModule(moduleId, moduleData, challenges) {
 
     if (existingRowId) {
       keptIds.add(existingRowId);
-
-      const { error: updateError } = await supabase
-        .from('challenges')
-        .update(rowPayload)
-        .eq('id', existingRowId);
-
-      if (updateError) {
-        throw new Error(`Erro ao atualizar desafio: ${updateError.message}`);
-      }
-
-      continue;
+      rowsToUpdate.push({ id: existingRowId, payload: rowPayload });
+    } else {
+      rowsToInsert.push(rowPayload);
     }
+  }
 
-    rowsToInsert.push(rowPayload);
+  // Executa updates em paralelo (Promise.all) — de N round-trips sequenciais para 1
+  if (rowsToUpdate.length > 0) {
+    const updateResults = await Promise.all(
+      rowsToUpdate.map(({ id, payload }) =>
+        supabase.from('challenges').update(payload).eq('id', id)
+      )
+    );
+
+    const updateError = updateResults.find((r) => r.error)?.error;
+    if (updateError) throw new Error(`Erro ao atualizar desafio: ${updateError.message}`);
   }
 
   if (rowsToInsert.length > 0) {

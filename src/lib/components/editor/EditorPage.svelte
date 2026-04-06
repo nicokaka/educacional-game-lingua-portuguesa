@@ -4,14 +4,14 @@
   import LeaderboardCleanupPanel from './LeaderboardCleanupPanel.svelte';
   import OpenTextResponsesPanel from './OpenTextResponsesPanel.svelte';
   import { fetchModules, fetchModuleWithChallenges, deleteModule } from '../../supabase/modules.js';
+  import { verifyProfessorPassword } from '../../supabase/professorAuth.js';
   import { navigate } from '../../router.svelte.js';
-
-  const PROFESSOR_PASSWORD = import.meta.env.VITE_PROFESSOR_PASSWORD || 'prof2026';
 
   let authenticated = $state(false);
   let passwordInput = $state('');
   let passwordError = $state('');
   let showPassword = $state(false);
+  let loggingIn = $state(false);
   let failedAttempts = $state(0);
   let lockUntil = $state(0);
   let lockClock = $state(Date.now());
@@ -34,15 +34,23 @@
     return () => clearInterval(timer);
   });
 
-  function handleLogin() {
+  async function handleLogin() {
+    if (isLocked || loggingIn) return;
+
     if (isLocked) {
       passwordError = `Acesso bloqueado. Tente novamente em ${remainingLockSeconds}s.`;
       return;
     }
 
-    if (passwordInput === PROFESSOR_PASSWORD) {
+    loggingIn = true;
+    passwordError = '';
+
+    const { success, error: authError } = await verifyProfessorPassword(passwordInput);
+
+    loggingIn = false;
+
+    if (success) {
       authenticated = true;
-      passwordError = '';
       failedAttempts = 0;
       lockUntil = 0;
       uiError = '';
@@ -54,13 +62,13 @@
         failedAttempts = 0;
         passwordError = 'Muitas tentativas. Acesso bloqueado por 30s.';
       } else {
-        passwordError = 'Senha incorreta.';
+        passwordError = authError || 'Senha incorreta.';
       }
     }
   }
 
   function handleKeydown(e) {
-    if (e.key === 'Enter') handleLogin();
+    if (e.key === 'Enter' && !loggingIn) handleLogin();
   }
 
   async function loadModules() {
@@ -187,8 +195,8 @@
           {/if}
         </div>
 
-        <button class="login-btn" onclick={handleLogin} disabled={isLocked}>
-          {isLocked ? `Aguarde ${remainingLockSeconds}s` : 'Entrar'}
+        <button class="login-btn" onclick={handleLogin} disabled={isLocked || loggingIn}>
+          {isLocked ? `Aguarde ${remainingLockSeconds}s` : loggingIn ? 'Verificando...' : 'Entrar'}
         </button>
 
         <button class="back-link" onclick={goToMenu}>← Voltar ao menu</button>

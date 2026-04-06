@@ -10,27 +10,49 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       manifest: {
-        name: 'GramQuest - Alquimia Verbal',
-        short_name: 'GramQuest',
-        description: 'Jogo educacional de gramática portuguesa',
+        name: 'Alquimia Verbal',
+        short_name: 'Alquimia Verbal',
+        description: 'Jogo educacional de gramática portuguesa — derrote os monstros respondendo desafios!',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
+        start_url: '/',
         icons: [
           {
-            src: 'vite.svg',
+            src: 'icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png',
           },
           {
-            src: 'vite.svg',
+            src: 'icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
-          }
-        ]
-      }
-    })
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        // Cache das imagens de monstros e professor (assets estáticos grandes)
+        runtimeCaching: [
+          {
+            urlPattern: /\/monstro\d+\.png$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'monster-images',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            urlPattern: /\/prof-.+\.png$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'professor-images',
+              expiration: { maxEntries: 5, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
+      },
+    }),
   ],
   assetsInclude: ['**/*.jsonc'],
 })

@@ -1,4 +1,5 @@
-<script>
+﻿<script>
+  import './renderer-shared.css';
   let { challenge, onAnswer, onHint } = $props();
 
   let answered = $state(false);
@@ -39,7 +40,10 @@
     selections = statements.map(() => null);
     answered = false;
     feedbackText = '';
+    return () => { if (feedbackTimerId) clearTimeout(feedbackTimerId); };
   });
+
+  let feedbackTimerId = null;
 
   function choose(index, value) {
     if (answered) return;
@@ -63,10 +67,12 @@
     if (!result.correct) {
       feedbackText = result.feedback || 'Bizu: leia cada afirmacao com calma e procure a palavra que muda o sentido.';
 
-      setTimeout(() => {
+      if (feedbackTimerId) clearTimeout(feedbackTimerId);
+      feedbackTimerId = setTimeout(() => {
         answered = false;
         selections = statements.map(() => null);
         feedbackText = '';
+        feedbackTimerId = null;
       }, 5200);
     }
   }
@@ -352,77 +358,15 @@
     box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
   }
 
-  .hint-row {
-    width: 100%;
-    max-width: 620px;
-    display: flex;
-    justify-content: flex-end;
+
+  @keyframes glow-correct {
+    from { box-shadow: 0 0 5px var(--color-correct, #4ade80); }
+    to   { box-shadow: 0 0 20px var(--color-correct, #4ade80), 0 0 40px rgba(74, 222, 128, 0.3); }
   }
 
-  .hint-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 999px;
-    border: 1px solid rgba(250, 204, 21, 0.45);
-    background: rgba(250, 204, 21, 0.12);
-    color: #fde68a;
-    font-size: 1.2rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .hint-btn:hover:not(:disabled) {
-    transform: translateY(-1px) scale(1.04);
-    background: rgba(250, 204, 21, 0.18);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
-  }
-
-  .hint-btn:disabled {
-    opacity: 0.55;
-    cursor: default;
-  }
-
-  .bizu-box {
-    width: 100%;
-    max-width: 620px;
-    padding: 1rem 1.15rem;
-    border-radius: 16px;
-    border: 1px solid rgba(250, 204, 21, 0.45);
-    border-left: 4px solid #facc15;
-    background: linear-gradient(
-      135deg,
-      rgba(250, 204, 21, 0.18),
-      rgba(251, 191, 36, 0.08) 45%,
-      rgba(15, 23, 42, 0.25)
-    );
-    color: #fef3c7;
-    text-align: left;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.2);
-    animation: bizu-enter 0.25s ease;
-  }
-
-  .bizu-label {
-    display: inline-block;
-    margin-bottom: 0.4rem;
-    font-size: 0.76rem;
-    font-weight: 800;
-    letter-spacing: 0.09em;
-    color: #fde68a;
-  }
-
-  .bizu-box p {
-    line-height: 1.6;
-    font-size: 0.98rem;
-  }
-
-  @keyframes bizu-enter {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+  @keyframes glow-wrong {
+    from { box-shadow: 0 0 5px var(--color-wrong, #f87171); }
+    to   { box-shadow: 0 0 20px var(--color-wrong, #f87171), 0 0 40px rgba(248, 113, 113, 0.3); }
   }
 
   @media (max-width: 640px) {
