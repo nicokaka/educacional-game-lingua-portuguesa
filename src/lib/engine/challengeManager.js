@@ -60,7 +60,7 @@ export function createChallengeManager(challenges, options = {}) {
       return {
         current: Math.min(currentIndex, total),
         total,
-        percent: Math.round((Math.min(currentIndex, total) / total) * 100),
+        percent: total === 0 ? 0 : Math.round((Math.min(currentIndex, total) / total) * 100),
       };
     },
 
