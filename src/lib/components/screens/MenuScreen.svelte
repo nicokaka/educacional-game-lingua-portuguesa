@@ -16,6 +16,7 @@
     rememberStudentProfile,
     activateStudentProfile,
   } from '../../studentIdentity.js';
+  import LeaderboardModal from './LeaderboardModal.svelte';
   const ALL_CLASSROOMS_VALUE = '__all__';
 
   let modules = $state([]);
@@ -246,7 +247,7 @@
     leaderboardLoading = true;
     leaderboardError = '';
     leaderboardModule = moduleData;
-    leaderboardPeriod = filter?.period === '12h' ? '12h' : 'today';
+    leaderboardPeriod = filter?.period || 'today';
     leaderboardClassroomId = filter?.classroomId ?? getSavedClassroomId().trim();
     leaderboardClassroomName = filter?.classroomName ?? (getSavedClassroomName().trim() || 'Todas as turmas');
     leaderboardStudentName = filter?.studentName ?? getSavedStudentName().trim();
@@ -324,6 +325,16 @@
     closeLeaderboard();
     pendingLeaderboardModule = currentModule;
     openStudentModal('', 'leaderboard');
+  }
+
+  function changeLeaderboardPeriod(newPeriod) {
+    if (!leaderboardModule || newPeriod === leaderboardPeriod) return;
+    loadLeaderboard(leaderboardModule, {
+      classroomId: leaderboardClassroomId,
+      classroomName: leaderboardClassroomName,
+      studentName: leaderboardStudentName,
+      period: newPeriod,
+    });
   }
 
   function openHelp(section = 'instructions') {
@@ -630,122 +641,25 @@
   </div>
 {/if}
 
-{#if showLeaderboardModal}
-  <div class="help-overlay" role="presentation" onmousedown={closeLeaderboard}>
-    <div
-      class="help-modal leaderboard-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Placar do módulo"
-      tabindex="-1"
-      onmousedown={stopMouseDown}
-    >
-      <div class="help-header">
-        <h2 class="help-title">🏆 Placar recente</h2>
-        <button type="button" class="help-close" onclick={closeLeaderboard} aria-label="Fechar">x</button>
-      </div>
 
-      {#if leaderboardModule}
-        <div class="leaderboard-intro">
-          <p class="leaderboard-module-title">{leaderboardModule.title}</p>
-          <div class="leaderboard-summary-row">
-            <p class="leaderboard-summary-line">
-              {getLeaderboardPeriodLabel(leaderboardPeriod)} • {leaderboardClassroomName || 'Todas as turmas'} • {leaderboardAttemptCount} {leaderboardAttemptCount === 1 ? 'tentativa' : 'tentativas'}
-            </p>
-            <button
-              type="button"
-              class="leaderboard-filter-btn"
-              onclick={reopenLeaderboardStudentModal}
-            >
-              Trocar filtro
-            </button>
-          </div>
-        </div>
-      {/if}
 
-      {#if leaderboardLoading}
-        <div class="loading-state leaderboard-state">
-          <div class="spinner"></div>
-          <p>Carregando placar...</p>
-        </div>
-      {:else if leaderboardError}
-        <div class="error-state leaderboard-state">
-          <p class="error-text">⚠️ {leaderboardError}</p>
-          <p class="empty-hint">Não foi possível atualizar este placar agora. Tente novamente ou troque o filtro.</p>
-          <button type="button" class="retry-btn" onclick={retryLeaderboard}>Tentar novamente</button>
-        </div>
-      {:else if leaderboardTop3.length === 0}
-        <div class="empty-state leaderboard-state">
-          <p class="empty-text">Nenhuma tentativa encontrada para este placar.</p>
-          <p class="empty-hint">
-            {leaderboardClassroomId
-              ? `Nenhuma tentativa encontrada para esta turma ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
-              : `Nenhuma tentativa encontrada neste módulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
-          </p>
-          {#if leaderboardClassroomId}
-            <p class="empty-hint">Tente trocar para "Todas as turmas".</p>
-          {/if}
-          <button type="button" class="leaderboard-filter-btn" onclick={reopenLeaderboardStudentModal}>Trocar filtro</button>
-        </div>
-      {:else}
-        <div class="leaderboard-list">
-          {#each leaderboardTop3 as entry, index}
-            <div class={`leaderboard-entry podium-${index + 1}`}>
-              <div class="leaderboard-rank">
-                <span class="leaderboard-rank-badge">{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
-                <span>#{index + 1}</span>
-              </div>
-              <div class="leaderboard-main">
-                <div class="leaderboard-name">{entry.student_name}</div>
-                {#if entry.classroom_name}
-                  <div class="leaderboard-classroom">{entry.classroom_name}</div>
-                {/if}
-                <div class="leaderboard-meta">
-                  <span class="leaderboard-stat strong">{Math.round(entry.percentage * 100)}%</span>
-                  <span class="leaderboard-stat">{entry.score}/{entry.max_score} pontos</span>
-                  <span class="leaderboard-stat">{getAttemptStatusLabel(entry)}</span>
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-
-      {#if leaderboardStudentName}
-        <div class="leaderboard-divider"></div>
-
-        <h3 class="help-subtitle">Sua posição</h3>
-        {#if currentStudentLeaderboard}
-          <div class="leaderboard-entry current-student">
-            <div class="leaderboard-rank">
-              <span class="leaderboard-rank-badge">📍</span>
-              <span>#{currentStudentLeaderboard.rank}</span>
-            </div>
-            <div class="leaderboard-main">
-              <div class="leaderboard-name">{currentStudentLeaderboard.student_name}</div>
-              {#if currentStudentLeaderboard.classroom_name}
-                <div class="leaderboard-classroom">{currentStudentLeaderboard.classroom_name}</div>
-              {/if}
-              <div class="leaderboard-meta">
-                <span class="leaderboard-stat strong">{Math.round(currentStudentLeaderboard.percentage * 100)}%</span>
-                <span class="leaderboard-stat">{currentStudentLeaderboard.score}/{currentStudentLeaderboard.max_score} pontos</span>
-                <span class="leaderboard-stat">{getAttemptStatusLabel(currentStudentLeaderboard)}</span>
-              </div>
-            </div>
-          </div>
-        {:else}
-          <div class="leaderboard-empty-card">
-            <p class="empty-hint">
-              {leaderboardClassroomId
-                ? `Você ainda não tem tentativa registrada para ${leaderboardClassroomName} ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
-                : `Você ainda não tem tentativa registrada neste módulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
-            </p>
-          </div>
-        {/if}
-      {/if}
-    </div>
-  </div>
-{/if}
+<LeaderboardModal
+  show={showLeaderboardModal}
+  module={leaderboardModule}
+  classroomId={leaderboardClassroomId}
+  classroomName={leaderboardClassroomName}
+  studentName={leaderboardStudentName}
+  period={leaderboardPeriod}
+  loading={leaderboardLoading}
+  error={leaderboardError}
+  rankedEntries={leaderboardTop3}
+  currentStudentLeaderboard={currentStudentLeaderboard}
+  attemptCount={leaderboardAttemptCount}
+  onclose={closeLeaderboard}
+  onchangefilter={reopenLeaderboardStudentModal}
+  onchangeperiod={changeLeaderboardPeriod}
+  onretry={retryLeaderboard}
+/>
 
 <style>
   .menu-screen {
@@ -1179,166 +1093,6 @@
     width: min(460px, 94vw);
   }
 
-  .leaderboard-modal {
-    width: min(520px, 95vw);
-  }
-
-  .leaderboard-module-title {
-    font-size: 1.02rem;
-    font-weight: 800;
-    color: var(--color-text);
-    line-height: 1.45;
-  }
-
-  .leaderboard-intro {
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    margin-bottom: 0.95rem;
-  }
-
-  .leaderboard-summary-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-  }
-
-  .leaderboard-summary-line {
-    color: var(--color-muted);
-    font-size: 0.9rem;
-    line-height: 1.45;
-  }
-
-  .leaderboard-filter-btn {
-    border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: transparent;
-    color: var(--color-muted);
-    padding: 0.38rem 0.7rem;
-    font-size: 0.76rem;
-    font-weight: 700;
-    transition: all var(--transition-fast);
-    white-space: nowrap;
-  }
-
-  .leaderboard-filter-btn:hover {
-    transform: translateY(-1px);
-    border-color: rgba(148, 163, 184, 0.42);
-    color: var(--color-text);
-  }
-
-  .leaderboard-state {
-    padding: 1rem 0.25rem;
-  }
-
-  .leaderboard-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.65rem;
-  }
-
-  .leaderboard-entry {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    border-radius: 16px;
-    background: rgba(15, 23, 42, 0.36);
-    padding: 0.8rem 0.9rem;
-  }
-
-  .leaderboard-entry.podium-1 {
-    border-color: rgba(250, 204, 21, 0.38);
-    background: linear-gradient(180deg, rgba(250, 204, 21, 0.12), rgba(15, 23, 42, 0.42));
-  }
-
-  .leaderboard-entry.podium-2 {
-    border-color: rgba(226, 232, 240, 0.3);
-    background: linear-gradient(180deg, rgba(226, 232, 240, 0.08), rgba(15, 23, 42, 0.42));
-  }
-
-  .leaderboard-entry.podium-3 {
-    border-color: rgba(251, 146, 60, 0.3);
-    background: linear-gradient(180deg, rgba(251, 146, 60, 0.08), rgba(15, 23, 42, 0.42));
-  }
-
-  .leaderboard-entry.current-student {
-    border-color: rgba(139, 92, 246, 0.42);
-    background: rgba(139, 92, 246, 0.1);
-  }
-
-  .leaderboard-rank {
-    min-width: 52px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.15rem;
-    font-size: 0.98rem;
-    font-weight: 800;
-    color: #facc15;
-  }
-
-  .leaderboard-rank-badge {
-    font-size: 1.05rem;
-    line-height: 1;
-  }
-
-  .leaderboard-main {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.28rem;
-  }
-
-  .leaderboard-name {
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: var(--color-text);
-    word-break: break-word;
-  }
-
-  .leaderboard-classroom {
-    font-size: 0.8rem;
-    color: var(--color-muted);
-    line-height: 1.35;
-  }
-
-  .leaderboard-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem 0.75rem;
-    font-size: 0.82rem;
-    color: var(--color-muted);
-  }
-
-  .leaderboard-stat {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-  }
-
-  .leaderboard-stat.strong {
-    color: var(--color-text);
-    font-weight: 700;
-  }
-
-  .leaderboard-divider {
-    height: 1px;
-    background: var(--color-border);
-    margin: 1rem 0 0.8rem;
-  }
-
-  .leaderboard-empty-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.7rem;
-    padding: 0.95rem 1rem;
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    background: rgba(15, 23, 42, 0.3);
-  }
 
   .student-copy {
     font-size: 0.92rem;
@@ -1594,16 +1348,6 @@
       padding: 0.85rem 0.82rem 0.78rem;
     }
 
-    .leaderboard-summary-row {
-      align-items: stretch;
-      flex-direction: column;
-    }
-
-    .leaderboard-filter-btn {
-      width: 100%;
-      justify-content: center;
-      text-align: center;
-    }
 
     .student-actions {
       flex-direction: column-reverse;

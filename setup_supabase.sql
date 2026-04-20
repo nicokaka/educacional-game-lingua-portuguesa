@@ -4,6 +4,10 @@
 -- ==========================================
 
 -- Limpa tabelas anteriores (se existirem)
+-- (MIGRAÇÃO V2: Para atualizar um banco existente, rode apenas isso:)
+-- ALTER TABLE module_attempts ADD COLUMN IF NOT EXISTS wrong_answers INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE module_attempts ADD COLUMN IF NOT EXISTS hints_used INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE module_attempts ADD COLUMN IF NOT EXISTS max_streak INTEGER NOT NULL DEFAULT 0;
 DROP TRIGGER IF EXISTS set_updated_at ON modules;
 DROP FUNCTION IF EXISTS update_updated_at();
 DROP TABLE IF EXISTS classrooms CASCADE;
@@ -68,6 +72,9 @@ CREATE TABLE module_attempts (
   score INTEGER NOT NULL,
   max_score INTEGER NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT false,
+  wrong_answers INTEGER NOT NULL DEFAULT 0,
+  hints_used INTEGER NOT NULL DEFAULT 0,
+  max_streak INTEGER NOT NULL DEFAULT 0,
   finished_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

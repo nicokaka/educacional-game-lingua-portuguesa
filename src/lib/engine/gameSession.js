@@ -7,6 +7,9 @@ export function createInitialGameState() {
     score: 0,
     maxScore: 0,
     streak: 0,
+    wrong_answers: 0,
+    hints_used: 0,
+    max_streak: 0,
     monsterHp: 100,
     maxMonsterHp: 100,
     playerHp: 100,
@@ -30,6 +33,9 @@ export function startGameState(state, moduleData) {
   state.score = 0;
   state.maxScore = getModuleMaxScore(moduleData);
   state.streak = 0;
+  state.wrong_answers = 0;
+  state.hints_used = 0;
+  state.max_streak = 0;
   state.phase = 'playing';
   state.errorMessage = '';
   state.monsterName = monster.name;
@@ -65,6 +71,7 @@ export function advanceToNextChallengeState(state, nextChallenge, progress) {
 export function applyCorrectAnswerState(state, challenge) {
   state.score += getChallengeScore(challenge);
   state.streak += 1;
+  if (state.streak > state.max_streak) state.max_streak = state.streak;
   state.monsterHp = Math.max(0, state.monsterHp - getChallengeDamage(challenge));
   state.playerHp = Math.min(
     state.maxPlayerHp,
@@ -74,6 +81,7 @@ export function applyCorrectAnswerState(state, challenge) {
 
 export function applyWrongAnswerState(state, challenge) {
   state.streak = 0;
+  state.wrong_answers += 1;
   state.monsterHp = Math.min(
     state.maxMonsterHp,
     state.monsterHp + Math.max(6, Math.round(getChallengeDamage(challenge) * 0.35))
@@ -94,6 +102,7 @@ export function applyHintPenaltyState(state, challenge) {
   state.monsterHp = Math.min(state.maxMonsterHp, state.monsterHp + monsterHeal);
   state.playerHp = Math.max(0, state.playerHp - playerDamage);
   state.hintUsedForQuestion = true;
+  state.hints_used += 1;
 
   if (state.playerHp <= 0) {
     state.phase = 'game_over';

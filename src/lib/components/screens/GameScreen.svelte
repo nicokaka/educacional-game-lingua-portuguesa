@@ -190,6 +190,9 @@
       student_name: context.studentName,
       score: game.score,
       max_score: finalMaxScore,
+      wrong_answers: game.wrong_answers ?? 0,
+      hints_used: game.hints_used ?? 0,
+      max_streak: game.max_streak ?? 0,
       completed: phase === 'victory',
       finished_at: finishedAt,
     };
