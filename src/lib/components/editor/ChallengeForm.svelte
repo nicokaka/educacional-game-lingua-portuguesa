@@ -1,11 +1,13 @@
 <script>
   import TypeSelector from './TypeSelector.svelte';
+  import ChallengePreviewModal from './ChallengePreviewModal.svelte';
   import { supabase } from '../../supabase/client.js';
 
   let { challenge = $bindable(), onremove, onduplicate, errors = [] } = $props();
   let imageUploadError = $state('');
   let uploadingImage = $state(false);
   let imageInput = $state();
+  let showPreview = $state(false);
 
   function addOption() {
     if (!challenge.options) challenge.options = [];
@@ -421,6 +423,14 @@
     </div>
 
     <div class="footer-actions">
+      <button
+        class="icon-btn preview-btn-inline"
+        onclick={() => showPreview = true}
+        title="Pré-visualizar esta pergunta"
+        aria-label="Pré-visualizar esta pergunta"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      </button>
       <button class="icon-btn" onclick={onduplicate} title="Duplicar Pergunta" aria-label="Duplicar Pergunta">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
       </button>
@@ -430,6 +440,13 @@
     </div>
   </div>
 </div>
+
+{#if showPreview}
+  <ChallengePreviewModal
+    challenge={challenge}
+    onclose={() => showPreview = false}
+  />
+{/if}
 
 <style>
   .challenge-form {
@@ -783,6 +800,11 @@
   .icon-btn:hover {
     background: rgba(255, 255, 255, 0.05);
     color: var(--color-text);
+  }
+
+  .icon-btn.preview-btn-inline:hover {
+    background: rgba(139, 92, 246, 0.12);
+    color: #c4b5fd;
   }
 
   .icon-btn.danger:hover {
