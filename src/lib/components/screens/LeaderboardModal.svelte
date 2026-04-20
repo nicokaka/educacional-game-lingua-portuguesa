@@ -519,6 +519,7 @@
     cursor: pointer;
     transition: all var(--transition-fast);
     text-align: left;
+    color: var(--color-text);
   }
 
   .list-row:hover {
@@ -568,6 +569,7 @@
     align-items: center;
     gap: 0.5rem;
     text-transform: capitalize;
+    color: var(--color-text);
   }
 
   .row-class {
