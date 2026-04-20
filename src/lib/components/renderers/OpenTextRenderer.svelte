@@ -31,7 +31,7 @@
 
       if (result?.submitted) {
         submitted = true;
-        feedbackText = result.message || 'Resposta enviada para correcao do professor.';
+        feedbackText = result.message || 'Resposta enviada para correção do professor.';
         return;
       }
 
@@ -47,7 +47,7 @@
 <div class="renderer open-text-renderer">
   <p class="challenge-prompt">{challenge.prompt}</p>
   <p class="input-helper">
-    Escreva com calma: seu navegador pode sugerir acentos e correcoes em portugues.
+    Escreva com calma: seu navegador pode sugerir acentos e correções em português.
   </p>
 
   <textarea

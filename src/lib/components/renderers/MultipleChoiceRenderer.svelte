@@ -19,7 +19,7 @@
 
     const result = onHint?.();
     if (!result?.available) {
-      feedbackText = result?.message || 'Bizu indisponivel agora.';
+      feedbackText = result?.message || 'Bizu indisponível agora.';
       return;
     }
 
@@ -33,7 +33,7 @@
     const result = onAnswer(selectedId);
 
     if (!result.correct) {
-      feedbackText = result.feedback || 'Bizu: leia com calma e elimine a alternativa que nao combina com o enunciado.';
+      feedbackText = result.feedback || 'Bizu: leia com calma e elimine a alternativa que não combina com o enunciado.';
 
       if (feedbackTimerId) clearTimeout(feedbackTimerId);
       feedbackTimerId = setTimeout(() => {
@@ -78,7 +78,7 @@
 
   <div class="hint-row">
     <button class="hint-btn" onclick={askHint} disabled={answered} aria-label="Pedir bizu" title="Pedir bizu">
-      ðŸ’¡
+      💡
     </button>
   </div>
 

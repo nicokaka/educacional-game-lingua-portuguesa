@@ -65,7 +65,7 @@
     const result = onAnswer(selections);
 
     if (!result.correct) {
-      feedbackText = result.feedback || 'Bizu: leia cada afirmacao com calma e procure a palavra que muda o sentido.';
+      feedbackText = result.feedback || 'Bizu: leia cada afirmação com calma e procure a palavra que muda o sentido.';
 
       if (feedbackTimerId) clearTimeout(feedbackTimerId);
       feedbackTimerId = setTimeout(() => {
@@ -82,7 +82,7 @@
 
     const result = onHint?.();
     if (!result?.available) {
-      feedbackText = result?.message || 'Bizu indisponivel agora.';
+      feedbackText = result?.message || 'Bizu indisponível agora.';
       return;
     }
 
@@ -112,7 +112,7 @@
       {#each statements as statement, index}
         <div class="statement-card" class:single-statement={!isMultiStatement}>
           {#if isMultiStatement}
-            <div class="statement-meta">Afirmacao {index + 1}</div>
+            <div class="statement-meta">Afirmação {index + 1}</div>
           {/if}
           <p class="statement-text">{statement.text}</p>
           <div class="tf-buttons">

@@ -159,7 +159,7 @@
 
     const result = onHint?.();
     if (!result?.available) {
-      feedbackText = result?.message || 'Bizu indisponivel agora.';
+      feedbackText = result?.message || 'Bizu indisponível agora.';
       return;
     }
 
@@ -219,7 +219,7 @@
 
   <div class="hint-row">
     <button class="hint-btn" onclick={askHint} disabled={answered} aria-label="Pedir bizu" title="Pedir bizu">
-      ðŸ’¡
+      💡
     </button>
   </div>
 
