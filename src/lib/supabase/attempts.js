@@ -16,9 +16,9 @@ function stripFinishedAt(payload) {
 
 function getLeaderboardWindowStart(period = '12h') {
   if (period === 'today') {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    return todayStart.toISOString();
+    // Usa meia-noite UTC para evitar divergência entre celulares com fusos diferentes.
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
   }
 
   return new Date(Date.now() - (MODULE_LEADERBOARD_WINDOW_HOURS * 60 * 60 * 1000)).toISOString();

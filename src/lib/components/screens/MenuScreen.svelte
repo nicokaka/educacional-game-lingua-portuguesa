@@ -531,10 +531,10 @@
 
         <p class="student-copy">
           {studentModalMode === 'reviews'
-            ? 'Escolha sua turma e use seu nome. Se este aparelho ja foi usado antes, voce pode tocar no seu perfil salvo para evitar erro de digitacao.'
+            ? 'Escolha sua turma e use seu nome. Se este aparelho já foi usado antes, você pode tocar no seu perfil salvo para evitar erro de digitação.'
             : studentModalMode === 'leaderboard'
-              ? 'Escolha a turma. O nome e opcional.'
-              : 'Digite seu nome para entrar no modulo.'}
+              ? 'Escolha a turma. O nome é opcional.'
+              : 'Digite seu nome para entrar no módulo.'}
         </p>
 
         <div class="student-field">
@@ -554,9 +554,12 @@
             {/each}
           </select>
           {#if classrooms.length === 0}
-            <p class="student-helper">
+            <p class="student-helper error-helper">
               {classroomsError || 'Nenhuma turma cadastrada ainda. Peça ao professor para criar uma turma.'}
             </p>
+            <button type="button" class="retry-classrooms-btn" onclick={() => { closeStudentModal(); load(); }}>
+              🔄 Tentar carregar turmas novamente
+            </button>
           {/if}
         </div>
 
@@ -599,8 +602,10 @@
             placeholder="Ex.: Maria Souza"
             maxlength="80"
           />
-          {#if studentModalMode === 'reviews'}
-            <p class="student-helper">As correcoes ficam mais faceis de encontrar quando voce usa sempre o mesmo nome.</p>
+          {#if studentModalMode === 'play'}
+            <p class="student-helper">Use nome e sobrenome para evitar confusão com colegas de mesmo nome. Ex.: <em>Maria Souza</em></p>
+          {:else if studentModalMode === 'reviews'}
+            <p class="student-helper">As correções ficam mais fáceis de encontrar quando você usa sempre o mesmo nome.</p>
           {/if}
         </div>
 
@@ -1375,6 +1380,28 @@
     font-size: 0.82rem;
     color: var(--color-muted);
     line-height: 1.45;
+  }
+
+  .student-helper.error-helper {
+    color: #fca5a5;
+  }
+
+  .retry-classrooms-btn {
+    margin-top: 0.4rem;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid rgba(251, 146, 60, 0.4);
+    border-radius: 8px;
+    background: rgba(251, 146, 60, 0.08);
+    color: #fdba74;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .retry-classrooms-btn:hover {
+    background: rgba(251, 146, 60, 0.16);
+    border-color: rgba(251, 146, 60, 0.7);
   }
 
   .student-profile-list {
