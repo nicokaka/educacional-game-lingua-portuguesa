@@ -52,7 +52,7 @@
         const studentName = window.sessionStorage.getItem(STUDENT_NAME_KEY)?.trim();
         const classroomId = window.sessionStorage.getItem(CLASSROOM_ID_KEY)?.trim();
         if (!studentName || !classroomId) {
-          navigate('/');
+          navigate(`/?play=${moduleId}`);
           return;
         }
       }
@@ -578,19 +578,21 @@
       moduleName={game.moduleName}
     />
 
-    <div class="monster-area">
-      <div
-        class="monster-display"
-        class:hurt={game.monsterHp > 0 && game.monsterHp < game.maxMonsterHp * 0.3}
-        class:hit={isHit}
-        class:dead={game.monsterHp <= 0}
-      >
-        <MonsterSvg seed={game.monsterSeed} sprite={game.monsterSprite} class="battle-monster-svg" />
-        <span class="hit-ring" aria-hidden="true"></span>
-        <span class="hit-sparks" aria-hidden="true"></span>
-        <span class="monster-name">{game.monsterName}</span>
+    {#if game.maxMonsterHp > 0}
+      <div class="monster-area">
+        <div
+          class="monster-display"
+          class:hurt={game.monsterHp > 0 && game.monsterHp < game.maxMonsterHp * 0.3}
+          class:hit={isHit}
+          class:dead={game.monsterHp <= 0}
+        >
+          <MonsterSvg seed={game.monsterSeed} sprite={game.monsterSprite} class="battle-monster-svg" />
+          <span class="hit-ring" aria-hidden="true"></span>
+          <span class="hit-sparks" aria-hidden="true"></span>
+          <span class="monster-name">{game.monsterName}</span>
+        </div>
       </div>
-    </div>
+    {/if}
 
     {#key game.questionSerial}
       <ChallengeHost
@@ -611,14 +613,16 @@
       </div>
 
       <div class="victory-stats">
-        <div class="stat-card">
-          <span class="stat-card-value score-ratio">
-            <span>{game.score}</span>
-            <span class="score-divider">/</span>
-            <span class="score-max">{finalMaxScore}</span>
-          </span>
-          <span class="stat-card-label">Pontos</span>
-        </div>
+        {#if finalMaxScore > 0}
+          <div class="stat-card">
+            <span class="stat-card-value score-ratio">
+              <span>{game.score}</span>
+              <span class="score-divider">/</span>
+              <span class="score-max">{finalMaxScore}</span>
+            </span>
+            <span class="stat-card-label">Pontos</span>
+          </div>
+        {/if}
         <div class="stat-card">
           <span class="stat-card-value">{game.progress.total}</span>
           <span class="stat-card-label">Desafios</span>
@@ -652,14 +656,16 @@
       </div>
 
       <div class="victory-stats">
-        <div class="stat-card">
-          <span class="stat-card-value score-ratio">
-            <span>{game.score}</span>
-            <span class="score-divider">/</span>
-            <span class="score-max">{finalMaxScore}</span>
-          </span>
-          <span class="stat-card-label">Pontos</span>
-        </div>
+        {#if finalMaxScore > 0}
+          <div class="stat-card">
+            <span class="stat-card-value score-ratio">
+              <span>{game.score}</span>
+              <span class="score-divider">/</span>
+              <span class="score-max">{finalMaxScore}</span>
+            </span>
+            <span class="stat-card-label">Pontos</span>
+          </div>
+        {/if}
         <div class="stat-card">
           <span class="stat-card-value">{game.progress.current}</span>
           <span class="stat-card-label">Respondidas</span>

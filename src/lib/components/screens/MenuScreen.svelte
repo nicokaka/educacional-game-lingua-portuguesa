@@ -79,7 +79,19 @@
   }
 
   // Carrega módulos ao montar
-  $effect(() => { load(); });
+  $effect(() => {
+    load().then(() => {
+      if (typeof window !== 'undefined') {
+        const hash = window.location.hash;
+        const match = hash.match(/\?play=([^&]+)/);
+        if (match && match[1]) {
+          const modId = match[1];
+          window.history.replaceState(null, '', window.location.pathname + '#/');
+          playModule(modId);
+        }
+      }
+    });
+  });
 
   $effect(() => {
     if (!showStudentModal) return;

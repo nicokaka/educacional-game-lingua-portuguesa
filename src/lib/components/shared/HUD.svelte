@@ -12,12 +12,16 @@
     moduleName = '',
   } = $props();
 
-  let hpPercent = $derived(Math.max(0, Math.round((monsterHp / maxMonsterHp) * 100)));
+  let hpPercent = $derived(
+    maxMonsterHp > 0 ? Math.max(0, Math.round((monsterHp / maxMonsterHp) * 100)) : 0
+  );
   let hpColor = $derived(
     hpPercent > 60 ? '#4ade80' :
     hpPercent > 30 ? '#facc15' : '#f87171'
   );
-  let playerHpPercent = $derived(Math.max(0, Math.round((playerHp / maxPlayerHp) * 100)));
+  let playerHpPercent = $derived(
+    maxPlayerHp > 0 ? Math.max(0, Math.round((playerHp / maxPlayerHp) * 100)) : 0
+  );
   let playerHpColor = $derived(
     playerHpPercent > 60 ? '#60a5fa' :
     playerHpPercent > 30 ? '#facc15' : '#f87171'
@@ -39,27 +43,31 @@
       <span class="stat-value score-value">{score}</span>
     </div>
 
-    <div class="hp-section monster-section" class:hit={monsterHit}>
-      <span class="hp-label">HP do Monstro</span>
-      <div class="hp-bar-bg">
-        <div
-          class="hp-bar-fill"
-          style="width: {hpPercent}%; background: {hpColor};"
-        ></div>
+    {#if maxMonsterHp > 0}
+      <div class="hp-section monster-section" class:hit={monsterHit}>
+        <span class="hp-label">HP do Monstro</span>
+        <div class="hp-bar-bg">
+          <div
+            class="hp-bar-fill"
+            style="width: {hpPercent}%; background: {hpColor};"
+          ></div>
+        </div>
+        <span class="hp-text monster-hp-text">{monsterHp}/{maxMonsterHp}</span>
       </div>
-      <span class="hp-text monster-hp-text">{monsterHp}/{maxMonsterHp}</span>
-    </div>
+    {/if}
 
-    <div class="hp-section player-section" class:hit={playerHit}>
-      <span class="hp-label">Vida (HP)</span>
-      <div class="hp-bar-bg">
-        <div
-          class="hp-bar-fill"
-          style="width: {playerHpPercent}%; background: {playerHpColor};"
-        ></div>
+    {#if maxPlayerHp > 0}
+      <div class="hp-section player-section" class:hit={playerHit}>
+        <span class="hp-label">Vida (HP)</span>
+        <div class="hp-bar-bg">
+          <div
+            class="hp-bar-fill"
+            style="width: {playerHpPercent}%; background: {playerHpColor};"
+          ></div>
+        </div>
+        <span class="hp-text player-hp-text">{playerHp}/{maxPlayerHp}</span>
       </div>
-      <span class="hp-text player-hp-text">{playerHp}/{maxPlayerHp}</span>
-    </div>
+    {/if}
 
     <!-- Streak -->
     <div class="stat-block">

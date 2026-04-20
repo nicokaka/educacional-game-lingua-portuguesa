@@ -6,17 +6,20 @@
   let playerOrder = $state([]);
   let feedbackText = $state('');
 
-  // â”€â”€ Drag state (PointerEvents â€” funciona em mobile e desktop) â”€â”€
+  // ── Drag state (PointerEvents – funciona em mobile e desktop) ──
   let dragIndex = $state(-1);
   let dragPointerId = $state(null);
   let overIndex = $state(-1);
   let feedbackTimerId = null;
 
-  // â”€â”€ Ghost (indicador visual do item sendo arrastado) â”€â”€
+  // ── Ghost (indicador visual do item sendo arrastado) ──
   let ghost = $state({ visible: false, text: '', x: 0, y: 0, width: 0, height: 0 });
   let dragOffset = { x: 0, y: 0 };
   let dragStartPoint = { x: 0, y: 0 };
   let suppressClick = false;
+
+  // Referência ao container para hit-test e pointer capture
+  let trackEl = $state(null);
 
   $effect(() => {
     playerOrder = [...challenge.displayFragments];
@@ -48,6 +51,8 @@
       height: rect.height,
     };
 
+    // Captura no próprio chip para receber move/up mesmo quando o ghost cobre a tela.
+    // Os eventos capturados ainda borbulham para o container pai, que tem os handlers.
     event.currentTarget.setPointerCapture?.(event.pointerId);
     event.preventDefault();
   }
@@ -66,13 +71,16 @@
       x: event.clientX - dragOffset.x,
       y: event.clientY - dragOffset.y,
     };
+
+    // Hit-test por coordenada — não depende de pointerenter
+    overIndex = getChipIndexAt(event.clientX, event.clientY);
   }
 
   function handlePointerUp(event) {
     if (dragPointerId !== event.pointerId || dragIndex < 0) return;
 
     if (suppressClick && overIndex >= 0 && overIndex !== dragIndex) {
-      reorder(dragIndex, overIndex);
+      swap(dragIndex, overIndex);
     }
 
     dragIndex = -1;
@@ -90,28 +98,38 @@
     ghost = { visible: false, text: '', x: 0, y: 0, width: 0, height: 0 };
   }
 
-  function handleChipPointerEnter(index) {
-    if (dragIndex < 0 || index === dragIndex) return;
-    overIndex = index;
+  /**
+   * Retorna o índice do chip cujo rect contém o ponto (x, y).
+   * Ignora o chip que está sendo arrastado.
+   */
+  function getChipIndexAt(x, y) {
+    if (!trackEl) return -1;
+    const chips = trackEl.querySelectorAll('.order-chip');
+    for (let i = 0; i < chips.length; i++) {
+      if (i === dragIndex) continue;
+      const rect = chips[i].getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return i;
+      }
+    }
+    return -1;
   }
 
-  /** Move item de fromIndex para toIndex. */
-  function reorder(fromIndex, toIndex) {
+  /** Swap puro: troca dois itens de posição sem alterar os demais. */
+  function swap(fromIndex, toIndex) {
     const next = [...playerOrder];
-    const [item] = next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, item);
+    [next[fromIndex], next[toIndex]] = [next[toIndex], next[fromIndex]];
     playerOrder = next;
   }
 
   /**
    * Click simples (sem drag): troca o chip clicado com o vizinho seguinte.
-   * Em mobile isso funciona como reordenaÃ§Ã£o simples.
+   * Em mobile isso funciona como reordenação simples.
    */
   function handleChipClick(index) {
     if (suppressClick) { suppressClick = false; return; }
     if (answered || playerOrder.length < 2) return;
 
-    // Troca com o prÃ³ximo (ou vai para o inÃ­cio se for o Ãºltimo)
     const next = [...playerOrder];
     const swapWith = (index + 1) % next.length;
     [next[index], next[swapWith]] = [next[swapWith], next[index]];
@@ -162,8 +180,16 @@
 <div class="renderer ordering-renderer">
   <p class="challenge-prompt">{challenge.prompt}</p>
 
-  <div class="ordering-track" role="list">
-    {#each playerOrder as fragment, index (fragment + '-' + index)}
+  <div 
+    class="ordering-track" 
+    role="list" 
+    bind:this={trackEl}
+    onpointermove={handlePointerMove}
+    onpointerup={handlePointerUp}
+    onpointercancel={handlePointerCancel}
+    onlostpointercapture={handlePointerCancel}
+  >
+    {#each playerOrder as fragment, index (index)}
       <button
         type="button"
         class="order-chip"
@@ -171,13 +197,8 @@
         class:drag-over={overIndex === index && dragIndex >= 0}
         class:correct={isInCorrectPos(index)}
         class:wrong={isInWrongPos(index)}
-        aria-label={`PosiÃ§Ã£o ${index + 1}: ${fragment}. Clique para trocar de posiÃ§Ã£o.`}
+        aria-label={`Posição ${index + 1}: ${fragment}. Clique para trocar de posição.`}
         onpointerdown={(e) => handlePointerDown(e, index)}
-        onpointermove={handlePointerMove}
-        onpointerup={handlePointerUp}
-        onpointercancel={handlePointerCancel}
-        onlostpointercapture={handlePointerCancel}
-        onpointerenter={() => handleChipPointerEnter(index)}
         onclick={() => handleChipClick(index)}
         style="touch-action: none;"
         disabled={answered}
@@ -188,7 +209,7 @@
     {/each}
   </div>
 
-  <p class="hint-text">Arraste os cards para reordenar â€¢ Toque para trocar de posiÃ§Ã£o</p>
+  <p class="hint-text">Arraste os cards para reordenar • Toque para trocar de posição</p>
 
   {#if !answered}
     <button class="confirm-btn" onclick={confirm}>

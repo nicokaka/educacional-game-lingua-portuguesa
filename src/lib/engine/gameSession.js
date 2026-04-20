@@ -119,14 +119,14 @@ export function getPlayerDamage(challenge) {
 
 export function getModuleMonsterHp(moduleData) {
   const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
-  if (challenges.length === 0) return 100;
+  if (challenges.length === 0) return 0;
 
   return challenges.reduce((total, challenge) => total + getChallengeDamage(challenge), 0);
 }
 
 export function getModulePlayerHp(moduleData) {
   const challenges = (moduleData?.challenges || []).filter((challenge) => challenge?.type !== 'open_text');
-  if (challenges.length === 0) return 100;
+  if (challenges.length === 0) return 0;
 
   // Reserva de vida mais generosa para sustentar erros sem deixar a partida trivial.
   return challenges.reduce((total, challenge) => total + Math.max(10, Math.round(getPlayerDamage(challenge) * 0.8)), 0);
