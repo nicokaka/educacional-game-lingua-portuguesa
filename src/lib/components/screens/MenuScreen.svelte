@@ -397,8 +397,8 @@
       <button
         class="quick-action-btn tertiary"
         onclick={openStudentReviews}
-        aria-label="Ver minhas correcoes"
-        title="Ver minhas correcoes"
+        aria-label="Ver minhas correções"
+        title="Ver minhas correções"
       >
         📝 Ver minhas correções
       </button>
@@ -443,7 +443,7 @@
           <button
             class="module-rank-btn"
             onclick={() => openLeaderboard(mod)}
-            aria-label={"Abrir placar do modulo " + mod.title}
+            aria-label={"Abrir placar do módulo " + mod.title}
             title="Ver placar"
           >
             🏆 Placar
@@ -578,7 +578,7 @@
                 </button>
               {/each}
             </div>
-            <p class="student-helper">Se voce esqueceu como escreveu seu nome antes, toque em um perfil salvo da turma.</p>
+            <p class="student-helper">Se você esqueceu como escreveu seu nome antes, toque em um perfil salvo da turma.</p>
           </div>
         {/if}
 
@@ -622,7 +622,7 @@
               ? 'Ver correções'
               : studentModalMode === 'leaderboard'
                 ? 'Ver placar'
-                : 'Comecar'}
+                : 'Começar'}
           </button>
         </div>
       </form>
@@ -636,7 +636,7 @@
       class="help-modal leaderboard-modal"
       role="dialog"
       aria-modal="true"
-      aria-label="Placar do modulo"
+      aria-label="Placar do módulo"
       tabindex="-1"
       onmousedown={stopMouseDown}
     >
@@ -671,7 +671,7 @@
       {:else if leaderboardError}
         <div class="error-state leaderboard-state">
           <p class="error-text">⚠️ {leaderboardError}</p>
-          <p class="empty-hint">Nao foi possivel atualizar este placar agora. Tente novamente ou troque o filtro.</p>
+          <p class="empty-hint">Não foi possível atualizar este placar agora. Tente novamente ou troque o filtro.</p>
           <button type="button" class="retry-btn" onclick={retryLeaderboard}>Tentar novamente</button>
         </div>
       {:else if leaderboardTop3.length === 0}
@@ -679,8 +679,8 @@
           <p class="empty-text">Nenhuma tentativa encontrada para este placar.</p>
           <p class="empty-hint">
             {leaderboardClassroomId
-              ? `Nenhuma tentativa encontrada para esta turma ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
-              : `Nenhuma tentativa encontrada neste modulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
+              ? `Nenhuma tentativa encontrada para esta turma ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
+              : `Nenhuma tentativa encontrada neste módulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
           </p>
           {#if leaderboardClassroomId}
             <p class="empty-hint">Tente trocar para "Todas as turmas".</p>
@@ -737,8 +737,8 @@
           <div class="leaderboard-empty-card">
             <p class="empty-hint">
               {leaderboardClassroomId
-                ? `Voce ainda nao tem tentativa registrada para ${leaderboardClassroomName} ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
-                : `Voce ainda nao tem tentativa registrada neste modulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas ultimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
+                ? `Você ainda não tem tentativa registrada para ${leaderboardClassroomName} ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`
+                : `Você ainda não tem tentativa registrada neste módulo ${leaderboardPeriod === 'today' ? 'hoje' : `nas últimas ${MODULE_LEADERBOARD_WINDOW_HOURS} horas`}.`}
             </p>
           </div>
         {/if}
