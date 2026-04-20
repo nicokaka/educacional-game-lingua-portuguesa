@@ -12,6 +12,9 @@
   let overIndex = $state(-1);
   let feedbackTimerId = null;
 
+  // ── Seleção por toque (mobile: toque para selecionar, toque no destino para mover) ──
+  let selectedIndex = $state(-1);
+
   // ── Ghost (indicador visual do item sendo arrastado) ──
   let ghost = $state({ visible: false, text: '', x: 0, y: 0, width: 0, height: 0 });
   let dragOffset = { x: 0, y: 0 };
@@ -24,6 +27,7 @@
   $effect(() => {
     playerOrder = [...challenge.displayFragments];
     answered = false;
+    selectedIndex = -1;
     dragIndex = -1;
     overIndex = -1;
     feedbackText = '';
@@ -51,8 +55,6 @@
       height: rect.height,
     };
 
-    // Captura no próprio chip para receber move/up mesmo quando o ghost cobre a tela.
-    // Os eventos capturados ainda borbulham para o container pai, que tem os handlers.
     event.currentTarget.setPointerCapture?.(event.pointerId);
     event.preventDefault();
   }
@@ -72,7 +74,6 @@
       y: event.clientY - dragOffset.y,
     };
 
-    // Hit-test por coordenada — não depende de pointerenter
     overIndex = getChipIndexAt(event.clientX, event.clientY);
   }
 
@@ -80,7 +81,8 @@
     if (dragPointerId !== event.pointerId || dragIndex < 0) return;
 
     if (suppressClick && overIndex >= 0 && overIndex !== dragIndex) {
-      swap(dragIndex, overIndex);
+      // INSERÇÃO: move o chip para a posição alvo, deslocando os demais.
+      reorder(dragIndex, overIndex);
     }
 
     dragIndex = -1;
@@ -115,30 +117,42 @@
     return -1;
   }
 
-  /** Swap puro: troca dois itens de posição sem alterar os demais. */
-  function swap(fromIndex, toIndex) {
+  /**
+   * Inserção: remove o chip de fromIndex e o insere em toIndex.
+   * Os chips entre eles se deslocam — comportamento correto para ordenação de frases.
+   */
+  function reorder(fromIndex, toIndex) {
+    if (fromIndex === toIndex) return;
     const next = [...playerOrder];
-    [next[fromIndex], next[toIndex]] = [next[toIndex], next[fromIndex]];
+    const [item] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, item);
     playerOrder = next;
   }
 
   /**
-   * Click simples (sem drag): troca o chip clicado com o vizinho seguinte.
-   * Em mobile isso funciona como reordenação simples.
+   * Toque/clique sem drag:
+   *  - Primeiro toque: seleciona o chip.
+   *  - Segundo toque no mesmo chip: desseleciona.
+   *  - Segundo toque em chip diferente: move o chip selecionado para aquela posição.
    */
   function handleChipClick(index) {
     if (suppressClick) { suppressClick = false; return; }
     if (answered || playerOrder.length < 2) return;
 
-    const next = [...playerOrder];
-    const swapWith = (index + 1) % next.length;
-    [next[index], next[swapWith]] = [next[swapWith], next[index]];
-    playerOrder = next;
+    if (selectedIndex === -1) {
+      selectedIndex = index;
+    } else if (selectedIndex === index) {
+      selectedIndex = -1;
+    } else {
+      reorder(selectedIndex, index);
+      selectedIndex = -1;
+    }
   }
 
   function confirm() {
     if (answered) return;
 
+    selectedIndex = -1;
     answered = true;
     const result = onAnswer(playerOrder);
 
@@ -197,9 +211,10 @@
         class="order-chip"
         class:dragging={dragIndex === index}
         class:drag-over={overIndex === index && dragIndex >= 0}
+        class:selected={selectedIndex === index && !answered}
         class:correct={isInCorrectPos(index)}
         class:wrong={isInWrongPos(index)}
-        aria-label={`Posição ${index + 1}: ${fragment}. Clique para trocar de posição.`}
+        aria-label={`Posição ${index + 1}: ${fragment}. ${selectedIndex === -1 ? 'Toque para selecionar' : selectedIndex === index ? 'Selecionado — toque em outro para mover' : 'Toque para mover o selecionado aqui'}`}
         onpointerdown={(e) => handlePointerDown(e, index)}
         onclick={() => handleChipClick(index)}
         style="touch-action: none;"
@@ -211,7 +226,13 @@
     {/each}
   </div>
 
-  <p class="hint-text">Arraste os cards para reordenar • Toque para trocar de posição</p>
+  <p class="hint-text">
+    {#if selectedIndex >= 0}
+      Toque em outra palavra para mover — ou toque na mesma para desselecionar
+    {:else}
+      Arraste as palavras para reordenar • Toque para selecionar e mover
+    {/if}
+  </p>
 
   {#if !answered}
     <button class="confirm-btn" onclick={confirm}>
@@ -290,6 +311,13 @@
     opacity: 0.18;
     cursor: grabbing;
     transform: scale(0.97);
+  }
+
+  .order-chip.selected {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+    transform: translateY(-3px) scale(1.03);
   }
 
   .order-chip.drag-over {
