@@ -56,7 +56,6 @@
     };
 
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
   }
 
   function handlePointerMove(event) {
@@ -88,7 +87,6 @@
     dragIndex = -1;
     dragPointerId = null;
     overIndex = -1;
-    suppressClick = false;
     ghost = { visible: false, text: '', x: 0, y: 0, width: 0, height: 0 };
   }
 
@@ -96,7 +94,6 @@
     dragIndex = -1;
     dragPointerId = null;
     overIndex = -1;
-    suppressClick = false;
     ghost = { visible: false, text: '', x: 0, y: 0, width: 0, height: 0 };
   }
 
