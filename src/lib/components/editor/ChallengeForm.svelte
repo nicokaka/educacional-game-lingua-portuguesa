@@ -249,6 +249,7 @@
           <div class="option-block">
             <div class="option-row">
               <label class="radio-label">
+                <span class="sr-only">Marcar opcao {i + 1} como correta</span>
                 <input type="radio" name="correct_{challenge.id || Math.random()}" checked={opt.correct} onchange={() => {
                   challenge.options.forEach((o) => o.correct = false);
                   opt.correct = true;
@@ -288,13 +289,13 @@
             <input
               class="field-input google-input flex-1"
               value={statement.text}
-              oninput={(e) => updateTrueFalseText(i, e.target.value)}
+              oninput={(e) => updateTrueFalseText(i, /** @type {HTMLInputElement} */ (e.target).value)}
               placeholder="Afirmacao {i + 1}"
             />
             <select
               class="field-input google-input small-input tf-select"
               value={statement.correctAnswer ? 'true' : 'false'}
-              onchange={(e) => updateTrueFalseAnswer(i, e.target.value)}
+              onchange={(e) => updateTrueFalseAnswer(i, /** @type {HTMLSelectElement} */ (e.target).value)}
             >
               <option value="true">Verdadeiro</option>
               <option value="false">Falso</option>

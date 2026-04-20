@@ -946,28 +946,7 @@
     font-size: 4rem;
   }
 
-  .victory-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: var(--color-correct);
-  }
 
-  .victory-subtitle {
-    font-size: 1.1rem;
-    color: var(--color-muted);
-  }
-
-  .game-over-title {
-    font-size: 2.3rem;
-    font-weight: 800;
-    color: #fca5a5;
-  }
-
-  .game-over-subtitle {
-    font-size: 1.05rem;
-    color: var(--color-muted);
-    max-width: 560px;
-  }
 
   .ending-illustration {
     position: relative;

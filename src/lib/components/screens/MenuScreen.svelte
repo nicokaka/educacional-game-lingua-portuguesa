@@ -565,7 +565,7 @@
 
         {#if studentModalMode === 'reviews' && selectedClassroomId && reviewProfiles.length > 0}
           <div class="student-field">
-            <label class="field-label">Perfis usados neste aparelho</label>
+            <p class="field-label">Perfis usados neste aparelho</p>
             <div class="student-profile-list">
               {#each reviewProfiles as profile (profile.accessId)}
                 <button
