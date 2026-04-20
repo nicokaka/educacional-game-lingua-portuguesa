@@ -35,6 +35,25 @@ function getLeaderboardWindowStart(period = '12h') {
   return new Date(Date.now() - (MODULE_LEADERBOARD_WINDOW_HOURS * 60 * 60 * 1000)).toISOString();
 }
 
+// Utilitários de Tratamento de Dados (Anti-Dado Sujo)
+function toTitleCase(str) {
+  if (!str) return '';
+  return str.trim().toLowerCase().split(/\s+/).map(word => {
+    if (word.length === 0) return '';
+    const smallWords = ['e', 'de', 'da', 'do', 'das', 'dos'];
+    if (smallWords.includes(word)) return word;
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(' ');
+}
+
+function normalizeForDeduplication(name) {
+  if (!name) return '';
+  return name.toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
+    .replace(/\s+/g, " ") // Espaços únicos
+    .trim();
+}
+
 async function fetchLeaderboardAttemptRows(moduleId, filterClassroomId = '', period = '12h') {
   const trimmedFilterClassroomId = filterClassroomId?.trim?.() || '';
 
@@ -167,17 +186,23 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
   const rows = await fetchLeaderboardAttemptRows(moduleId, filterClassroomId, period);
 
   const rankedAttempts = rows
-    .map((attempt) => ({
-      ...attempt,
-      percentage: attempt.max_score > 0 ? attempt.score / attempt.max_score : 0,
-      student_name: attempt.student_name?.trim?.() || '',
-      classroom_id: attempt.classroom_id || '',
-      classroom_name: attempt.classroom_name || (attempt.classroom_id ? 'Turma removida ou indisponivel' : ''),
-      finished_at: attempt.finished_at || null,
-      wrong_answers: attempt.wrong_answers || 0,
-      hints_used: attempt.hints_used || 0,
-      max_streak: attempt.max_streak || 0,
-    }))
+    .map((attempt) => {
+      const rawName = attempt.student_name?.trim?.() || '';
+      const rawClass = attempt.classroom_name?.trim?.() || '';
+      
+      return {
+        ...attempt,
+        percentage: attempt.max_score > 0 ? attempt.score / attempt.max_score : 0,
+        student_name: toTitleCase(rawName),
+        student_name_raw: rawName, // Guardado para match do currentStudent
+        classroom_id: attempt.classroom_id || '',
+        classroom_name: rawClass ? toTitleCase(rawClass) : (attempt.classroom_id ? 'Turma Removida Ou Indisponível' : ''),
+        finished_at: attempt.finished_at || null,
+        wrong_answers: attempt.wrong_answers || 0,
+        hints_used: attempt.hints_used || 0,
+        max_streak: attempt.max_streak || 0,
+      };
+    })
     .sort((a, b) => {
       // 1. Maior porcentagem primeiro
       if (b.percentage !== a.percentage) return b.percentage - a.percentage;
@@ -207,25 +232,44 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
     });
 
   const bestByStudent = [];
-  const seenStudents = new Set();
+  const seenStudents = new Set(); // Guarda identityKeys para dedup rápido
 
   for (const attempt of rankedAttempts) {
-    const normalizedName = attempt.student_name;
-    if (!normalizedName) continue;
+    if (!attempt.student_name_raw) continue;
+    
+    const dedupName = normalizeForDeduplication(attempt.student_name_raw);
+    const currentClassroom = attempt.classroom_id || 'legacy';
+    
+    // Deduplicação inteligente (Anti-typos / Nomes parecidos)
+    let isDuplicate = false;
+    for (const seenKey of seenStudents) {
+      const [seenClassroom, seenName] = seenKey.split('::');
+      
+      if (seenClassroom === currentClassroom) {
+        // Se um nome contém o outro (ex: "davi e pedro" vs "davi e pedro isaias") e for maior que 4 caracteres
+        if ((seenName.includes(dedupName) || dedupName.includes(seenName)) && Math.min(seenName.length, dedupName.length) > 4) {
+          isDuplicate = true;
+          break;
+        }
+      }
+    }
 
-    const identityKey = attempt.classroom_id
-      ? `${attempt.classroom_id}::${normalizedName}`
-      : `legacy::${normalizedName}`;
+    if (isDuplicate) continue;
 
-    if (seenStudents.has(identityKey)) continue;
+    const identityKey = `${currentClassroom}::${dedupName}`;
     seenStudents.add(identityKey);
     bestByStudent.push(attempt);
   }
 
   const trimmedCurrentStudent = currentStudentName?.trim?.() || '';
+  const normalizedCurrentStudent = normalizeForDeduplication(trimmedCurrentStudent);
+  
   const currentStudentIndex = trimmedCurrentStudent
     ? bestByStudent.findIndex((entry) => {
-        if (entry.student_name !== trimmedCurrentStudent) return false;
+        // Match relaxado para encontrar o aluno atual mesmo que a string raw divirja
+        const entryNormalized = normalizeForDeduplication(entry.student_name_raw);
+        if (entryNormalized !== normalizedCurrentStudent && !entryNormalized.includes(normalizedCurrentStudent) && !normalizedCurrentStudent.includes(entryNormalized)) return false;
+        
         if (!trimmedCurrentClassroomId) return !entry.classroom_id;
         return entry.classroom_id === trimmedCurrentClassroomId || !entry.classroom_id;
       })
