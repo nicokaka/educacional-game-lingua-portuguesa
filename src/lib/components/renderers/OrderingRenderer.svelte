@@ -151,6 +151,8 @@
         feedbackText = '';
         feedbackTimerId = null;
       }, 4800);
+    } else if (result.feedback) {
+      feedbackText = result.feedback;
     }
   }
 

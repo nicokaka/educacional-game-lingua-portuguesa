@@ -69,7 +69,7 @@
 
     if (previewChallenge.type === 'ordering') {
       const frags = previewChallenge.fragments || [];
-      const isCorrect = Array.isArray(answer) && answer.join('') === frags.join('');
+      const isCorrect = Array.isArray(answer) && answer.length === frags.length && answer.every((ans, i) => ans === frags[i]);
       return {
         correct: isCorrect,
         feedback: isCorrect
