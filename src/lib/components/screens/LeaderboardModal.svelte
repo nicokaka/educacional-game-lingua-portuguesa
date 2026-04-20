@@ -416,7 +416,7 @@
     flex-direction: column;
     align-items: center;
     width: 30%;
-    padding: 1rem 0.5rem;
+    padding: 1.2rem 0.2rem 0.5rem;
     border-radius: 12px 12px 0 0;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -426,9 +426,9 @@
     animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
   }
 
-  .rank-1 { height: 140px; border-color: rgba(250, 204, 21, 0.5); z-index: 3; animation-delay: 0.2s; background: linear-gradient(to bottom, rgba(250,204,21,0.1), var(--color-surface)); }
-  .rank-2 { height: 110px; border-color: rgba(148, 163, 184, 0.5); z-index: 2; animation-delay: 0.1s; }
-  .rank-3 { height: 95px; border-color: rgba(180, 120, 60, 0.5); z-index: 1; animation-delay: 0s; }
+  .rank-1 { height: 160px; border-color: rgba(250, 204, 21, 0.5); z-index: 3; animation-delay: 0.2s; background: linear-gradient(to bottom, rgba(250,204,21,0.1), var(--color-surface)); }
+  .rank-2 { height: 135px; border-color: rgba(148, 163, 184, 0.5); z-index: 2; animation-delay: 0.1s; }
+  .rank-3 { height: 120px; border-color: rgba(180, 120, 60, 0.5); z-index: 1; animation-delay: 0s; }
 
   @keyframes slideUp {
     from { transform: translateY(50px); opacity: 0; }
@@ -442,14 +442,16 @@
   }
 
   .podium-name {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
     text-align: center;
-    margin-top: 0.5rem;
+    margin-top: 0.2rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     width: 100%;
+    min-width: 0;
+    padding: 0 0.2rem;
     color: var(--color-text);
   }
 
@@ -469,7 +471,8 @@
 
   .podium-points {
     font-size: 0.75rem;
-    color: var(--color-muted);
+    color: #94a3b8;
+    margin-top: 0.1rem;
   }
 
   /* LISTA SCROLLÁVEL */

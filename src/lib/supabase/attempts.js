@@ -179,10 +179,30 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
       max_streak: attempt.max_streak || 0,
     }))
     .sort((a, b) => {
+      // 1. Maior porcentagem primeiro
       if (b.percentage !== a.percentage) return b.percentage - a.percentage;
+      
+      // 2. Status de conclusão (completo > incompleto > sem finished_at)
       const statusRankA = a.finished_at ? (a.completed ? 3 : 1) : 2;
       const statusRankB = b.finished_at ? (b.completed ? 3 : 1) : 2;
       if (statusRankB !== statusRankA) return statusRankB - statusRankA;
+
+      // 3. Menor tempo de duração primeiro (tie-breaker de velocidade)
+      const durationA = a.finished_at && a.created_at ? new Date(a.finished_at).getTime() - new Date(a.created_at).getTime() : Infinity;
+      const durationB = b.finished_at && b.created_at ? new Date(b.finished_at).getTime() - new Date(b.created_at).getTime() : Infinity;
+      
+      const validA = durationA > 0 && durationA <= 3600000; // max 1 hora
+      const validB = durationB > 0 && durationB <= 3600000;
+      
+      if (validA && validB && durationA !== durationB) {
+        return durationA - durationB;
+      } else if (validA && !validB) {
+        return -1;
+      } else if (!validA && validB) {
+        return 1;
+      }
+
+      // 4. Último caso: mais recente primeiro
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
