@@ -63,6 +63,7 @@
   }
 
   let top3 = $derived(rankedEntries.slice(0, 3));
+  let remainingEntries = $derived(rankedEntries.slice(3));
 
   function isCurrentStudent(entry) {
     return currentStudentLeaderboard && currentStudentLeaderboard.id === entry.id;
@@ -80,7 +81,7 @@
       onmousedown={stopMouseDown}
     >
       <div class="help-header">
-        <h2 class="help-title">🏆 Placar de {module?.title || 'Módulo'}</h2>
+        <h2 class="help-title" title="🏆 Placar de {module?.title || 'Módulo'}">🏆 Placar de {module?.title || 'Módulo'}</h2>
         <button type="button" class="help-close" onclick={onclose} aria-label="Fechar">x</button>
       </div>
 
@@ -155,6 +156,7 @@
                 </div>
                 <div class="podium-score">{Math.round(top3[1].percentage * 100)}%</div>
                 <div class="podium-points">{top3[1].score}/{top3[1].max_score}</div>
+                <div class="podium-time">⏱ {getDuration(top3[1])}</div>
               </div>
             {/if}
 
@@ -166,6 +168,7 @@
                 </div>
                 <div class="podium-score">{Math.round(top3[0].percentage * 100)}%</div>
                 <div class="podium-points">{top3[0].score}/{top3[0].max_score}</div>
+                <div class="podium-time">⏱ {getDuration(top3[0])}</div>
               </div>
             {/if}
 
@@ -177,13 +180,14 @@
                 </div>
                 <div class="podium-score">{Math.round(top3[2].percentage * 100)}%</div>
                 <div class="podium-points">{top3[2].score}/{top3[2].max_score}</div>
+                <div class="podium-time">⏱ {getDuration(top3[2])}</div>
               </div>
             {/if}
           </div>
 
           <!-- LISTA SCROLLÁVEL -->
           <div class="list-section" bind:this={listContainer}>
-            {#each rankedEntries as entry, index}
+            {#each remainingEntries as entry, index}
               {@const isMe = isCurrentStudent(entry)}
               {@const pct = Math.round(entry.percentage * 100)}
               {@const barColor = pct >= 80 ? 'var(--color-correct)' : pct >= 50 ? 'var(--color-warning)' : 'var(--color-wrong)'}
@@ -195,7 +199,7 @@
               >
                 <div class="row-main">
                   <div class="row-rank">
-                    #{index + 1}
+                    #{index + 4}
                   </div>
                   <div class="row-info">
                     <div class="row-name">
@@ -292,6 +296,12 @@
     font-size: 1.2rem;
     font-weight: 700;
     color: var(--color-text);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 1rem;
   }
 
   .help-close {
@@ -339,6 +349,7 @@
     border-radius: 999px;
     font-size: 0.8rem;
     font-weight: 600;
+    text-transform: capitalize;
   }
 
   .class-pill { background: rgba(56, 189, 248, 0.2); color: #bae6fd; }
@@ -454,6 +465,7 @@
     padding: 0 0.2rem;
     color: var(--color-text);
     flex-shrink: 0;
+    text-transform: capitalize;
   }
 
   .podium-name.highlight {
@@ -476,6 +488,14 @@
     color: #94a3b8;
     margin-top: 0.1rem;
     flex-shrink: 0;
+  }
+
+  .podium-time {
+    font-size: 0.7rem;
+    color: var(--color-primary);
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+    font-weight: 600;
   }
 
   /* LISTA SCROLLÁVEL */
@@ -547,11 +567,13 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    text-transform: capitalize;
   }
 
   .row-class {
     font-size: 0.75rem;
     color: var(--color-muted);
+    text-transform: capitalize;
   }
 
   .tag-abandoned {
