@@ -1,34 +1,40 @@
 <script>
-  import { MODULE_LEADERBOARD_WINDOW_HOURS } from '../../supabase/attempts.js';
+  import { MODULE_LEADERBOARD_WINDOW_HOURS } from "../../supabase/attempts.js";
 
   let {
     show = false,
     module = null,
-    classroomId = '',
-    classroomName = '',
-    studentName = '',
-    period = 'today',
+    classroomId = "",
+    classroomName = "",
+    studentName = "",
+    period = "today",
     loading = false,
-    error = '',
+    error = "",
     rankedEntries = [],
     currentStudentLeaderboard = null,
     attemptCount = 0,
     onclose,
     onchangefilter,
     onchangeperiod,
-    onretry
+    onretry,
   } = $props();
 
   let listContainer = $state();
-  let expandedEntryId = $state('');
+  let expandedEntryId = $state("");
 
   $effect(() => {
     // Quando a lista terminar de carregar e tivermos as entradas, rolar até o aluno
-    if (show && !loading && rankedEntries.length > 0 && currentStudentLeaderboard && listContainer) {
+    if (
+      show &&
+      !loading &&
+      rankedEntries.length > 0 &&
+      currentStudentLeaderboard &&
+      listContainer
+    ) {
       setTimeout(() => {
-        const studentRow = listContainer?.querySelector('.current-student-row');
+        const studentRow = listContainer?.querySelector(".current-student-row");
         if (studentRow) {
-          studentRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          studentRow.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       }, 100);
     }
@@ -40,16 +46,16 @@
 
   function toggleExpand(id) {
     if (expandedEntryId === id) {
-      expandedEntryId = '';
+      expandedEntryId = "";
     } else {
       expandedEntryId = id;
     }
   }
 
   function getDuration(attempt) {
-    if (!attempt.finished_at || !attempt.created_at) return '—';
+    if (!attempt.finished_at || !attempt.created_at) return "—";
     const ms = new Date(attempt.finished_at) - new Date(attempt.created_at);
-    if (ms < 0 || ms > 3600000) return '—'; // > 1h = dado inválido
+    if (ms < 0 || ms > 3600000) return "—"; // > 1h = dado inválido
     const totalSeconds = Math.round(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
@@ -57,8 +63,8 @@
   }
 
   function getPeriodLabel(p) {
-    if (p === 'today') return 'Hoje';
-    if (p === '7d') return 'Últimos 7 dias';
+    if (p === "today") return "Hoje";
+    if (p === "7d") return "Últimos 7 dias";
     return `Últimas ${MODULE_LEADERBOARD_WINDOW_HOURS}h`;
   }
 
@@ -66,7 +72,9 @@
   let remainingEntries = $derived(rankedEntries.slice(3));
 
   function isCurrentStudent(entry) {
-    return currentStudentLeaderboard && currentStudentLeaderboard.id === entry.id;
+    return (
+      currentStudentLeaderboard && currentStudentLeaderboard.id === entry.id
+    );
   }
 </script>
 
@@ -81,15 +89,24 @@
       onmousedown={stopMouseDown}
     >
       <div class="help-header">
-        <h2 class="help-title" title="🏆 Placar de {module?.title || 'Módulo'}">🏆 Placar de {module?.title || 'Módulo'}</h2>
-        <button type="button" class="help-close" onclick={onclose} aria-label="Fechar">x</button>
+        <h2 class="help-title" title="🏆 Placar de {module?.title || 'Módulo'}">
+          🏆 Placar de {module?.title || "Módulo"}
+        </h2>
+        <button
+          type="button"
+          class="help-close"
+          onclick={onclose}
+          aria-label="Fechar">x</button
+        >
       </div>
 
       {#if module}
         <div class="leaderboard-intro">
           <div class="leaderboard-summary-row">
             <div class="summary-pills">
-              <span class="pill class-pill">{classroomName || 'Todas as turmas'}</span>
+              <span class="pill class-pill"
+                >{classroomName || "Todas as turmas"}</span
+              >
               <span class="pill count-pill">{attemptCount} tentativas</span>
             </div>
             <button
@@ -101,27 +118,27 @@
             </button>
           </div>
           <div class="period-toggles">
-            <button 
-              type="button" 
-              class="period-toggle" 
-              class:active={period === 'today'} 
-              onclick={() => onchangeperiod('today')}
+            <button
+              type="button"
+              class="period-toggle"
+              class:active={period === "today"}
+              onclick={() => onchangeperiod("today")}
             >
               Hoje
             </button>
-            <button 
-              type="button" 
-              class="period-toggle" 
-              class:active={period === '12h'} 
-              onclick={() => onchangeperiod('12h')}
+            <button
+              type="button"
+              class="period-toggle"
+              class:active={period === "12h"}
+              onclick={() => onchangeperiod("12h")}
             >
               12h
             </button>
-            <button 
-              type="button" 
-              class="period-toggle" 
-              class:active={period === '7d'} 
-              onclick={() => onchangeperiod('7d')}
+            <button
+              type="button"
+              class="period-toggle"
+              class:active={period === "7d"}
+              onclick={() => onchangeperiod("7d")}
             >
               7 Dias
             </button>
@@ -137,7 +154,9 @@
       {:else if error}
         <div class="error-state leaderboard-state">
           <p class="error-text">⚠️ {error}</p>
-          <button type="button" class="retry-btn" onclick={onretry}>Tentar novamente</button>
+          <button type="button" class="retry-btn" onclick={onretry}
+            >Tentar novamente</button
+          >
         </div>
       {:else if rankedEntries.length === 0}
         <div class="empty-state leaderboard-state">
@@ -151,11 +170,18 @@
             {#if top3[1]}
               <div class="podium-spot rank-2">
                 <div class="podium-badge">🥈</div>
-                <div class="podium-name" class:highlight={isCurrentStudent(top3[1])}>
+                <div
+                  class="podium-name"
+                  class:highlight={isCurrentStudent(top3[1])}
+                >
                   {top3[1].student_name}
                 </div>
-                <div class="podium-score">{Math.round(top3[1].percentage * 100)}%</div>
-                <div class="podium-points">{top3[1].score}/{top3[1].max_score}</div>
+                <div class="podium-score">
+                  {Math.round(top3[1].percentage * 100)}%
+                </div>
+                <div class="podium-points">
+                  {top3[1].score}/{top3[1].max_score}
+                </div>
                 <div class="podium-time">⏱ {getDuration(top3[1])}</div>
               </div>
             {/if}
@@ -163,11 +189,18 @@
             {#if top3[0]}
               <div class="podium-spot rank-1">
                 <div class="podium-badge">🥇</div>
-                <div class="podium-name" class:highlight={isCurrentStudent(top3[0])}>
+                <div
+                  class="podium-name"
+                  class:highlight={isCurrentStudent(top3[0])}
+                >
                   👑 {top3[0].student_name}
                 </div>
-                <div class="podium-score">{Math.round(top3[0].percentage * 100)}%</div>
-                <div class="podium-points">{top3[0].score}/{top3[0].max_score}</div>
+                <div class="podium-score">
+                  {Math.round(top3[0].percentage * 100)}%
+                </div>
+                <div class="podium-points">
+                  {top3[0].score}/{top3[0].max_score}
+                </div>
                 <div class="podium-time">⏱ {getDuration(top3[0])}</div>
               </div>
             {/if}
@@ -175,11 +208,18 @@
             {#if top3[2]}
               <div class="podium-spot rank-3">
                 <div class="podium-badge">🥉</div>
-                <div class="podium-name" class:highlight={isCurrentStudent(top3[2])}>
+                <div
+                  class="podium-name"
+                  class:highlight={isCurrentStudent(top3[2])}
+                >
                   {top3[2].student_name}
                 </div>
-                <div class="podium-score">{Math.round(top3[2].percentage * 100)}%</div>
-                <div class="podium-points">{top3[2].score}/{top3[2].max_score}</div>
+                <div class="podium-score">
+                  {Math.round(top3[2].percentage * 100)}%
+                </div>
+                <div class="podium-points">
+                  {top3[2].score}/{top3[2].max_score}
+                </div>
                 <div class="podium-time">⏱ {getDuration(top3[2])}</div>
               </div>
             {/if}
@@ -190,11 +230,18 @@
             {#each remainingEntries as entry, index}
               {@const isMe = isCurrentStudent(entry)}
               {@const pct = Math.round(entry.percentage * 100)}
-              {@const barColor = pct >= 80 ? 'var(--color-correct)' : pct >= 50 ? 'var(--color-warning)' : 'var(--color-wrong)'}
+              {@const barColor =
+                pct >= 80
+                  ? "var(--color-correct)"
+                  : pct >= 50
+                    ? "var(--color-warning)"
+                    : "var(--color-wrong)"}
               {@const isExpanded = expandedEntryId === entry.id}
-              
-              <button 
-                class="list-row {isMe ? 'current-student-row' : ''} {isExpanded ? 'expanded' : ''}" 
+
+              <button
+                class="list-row {isMe ? 'current-student-row' : ''} {isExpanded
+                  ? 'expanded'
+                  : ''}"
                 onclick={() => toggleExpand(entry.id)}
               >
                 <div class="row-main">
@@ -203,7 +250,7 @@
                   </div>
                   <div class="row-info">
                     <div class="row-name">
-                      {isMe ? '⭐ VOCÊ' : entry.student_name}
+                      {isMe ? "⭐ VOCÊ" : entry.student_name}
                       {#if !entry.completed}
                         <span class="tag-abandoned">Abandonou</span>
                       {/if}
@@ -213,19 +260,26 @@
                     {/if}
                   </div>
                   <div class="row-stats-quick">
-                    <span class="quick-pct" style="color: {barColor}">{pct}%</span>
+                    <span class="quick-pct" style="color: {barColor}"
+                      >{pct}%</span
+                    >
                     <span class="quick-time">⏱ {getDuration(entry)}</span>
                   </div>
                 </div>
 
                 <div class="row-progress-track">
-                  <div class="row-progress-fill" style="width: {pct}%; background-color: {barColor};"></div>
+                  <div
+                    class="row-progress-fill"
+                    style="width: {pct}%; background-color: {barColor};"
+                  ></div>
                 </div>
 
                 {#if isExpanded}
                   <div class="row-details">
                     <div class="detail-item">
-                      <span class="detail-val">{entry.score}/{entry.max_score}</span>
+                      <span class="detail-val"
+                        >{entry.score}/{entry.max_score}</span
+                      >
                       <span class="detail-lbl">Pontos</span>
                     </div>
                     <div class="detail-item">
@@ -279,7 +333,7 @@
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     overflow: hidden;
   }
 
@@ -352,8 +406,14 @@
     text-transform: capitalize;
   }
 
-  .class-pill { background: rgba(56, 189, 248, 0.2); color: #bae6fd; }
-  .count-pill { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+  .class-pill {
+    background: rgba(56, 189, 248, 0.2);
+    color: #bae6fd;
+  }
+  .count-pill {
+    background: rgba(148, 163, 184, 0.2);
+    color: #cbd5e1;
+  }
 
   .leaderboard-filter-btn {
     padding: 0.4rem 0.8rem;
@@ -401,7 +461,7 @@
   .period-toggle.active {
     background: rgba(139, 92, 246, 0.3);
     color: #c4b5fd;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
   .leaderboard-content {
@@ -417,7 +477,11 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 1.5rem 1rem;
-    background: linear-gradient(to bottom, rgba(139, 92, 246, 0.05), rgba(15, 23, 42, 0.2));
+    background: linear-gradient(
+      to bottom,
+      rgba(139, 92, 246, 0.05),
+      rgba(15, 23, 42, 0.2)
+    );
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
   }
@@ -432,24 +496,50 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-bottom: none;
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.2);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.2);
     position: relative;
     animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
   }
 
-  .rank-1 { height: 175px; border-color: rgba(250, 204, 21, 0.5); z-index: 3; animation-delay: 0.2s; background: linear-gradient(to bottom, rgba(250,204,21,0.1), var(--color-surface)); }
-  .rank-2 { height: 150px; border-color: rgba(148, 163, 184, 0.5); z-index: 2; animation-delay: 0.1s; }
-  .rank-3 { height: 135px; border-color: rgba(180, 120, 60, 0.5); z-index: 1; animation-delay: 0s; }
+  .rank-1 {
+    height: 175px;
+    border-color: rgba(250, 204, 21, 0.5);
+    z-index: 3;
+    animation-delay: 0.2s;
+    background: linear-gradient(
+      to bottom,
+      rgba(250, 204, 21, 0.1),
+      var(--color-surface)
+    );
+  }
+  .rank-2 {
+    height: 150px;
+    border-color: rgba(148, 163, 184, 0.5);
+    z-index: 2;
+    animation-delay: 0.1s;
+  }
+  .rank-3 {
+    height: 135px;
+    border-color: rgba(180, 120, 60, 0.5);
+    z-index: 1;
+    animation-delay: 0s;
+  }
 
   @keyframes slideUp {
-    from { transform: translateY(50px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+      transform: translateY(50px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 
   .podium-badge {
     font-size: 1.8rem;
     margin-top: -1.8rem;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
   }
 
   .podium-name {
@@ -479,9 +569,15 @@
     flex-shrink: 0;
   }
 
-  .rank-1 .podium-score { color: #facc15; }
-  .rank-2 .podium-score { color: #cbd5e1; }
-  .rank-3 .podium-score { color: #fdba74; }
+  .rank-1 .podium-score {
+    color: #facc15;
+  }
+  .rank-2 .podium-score {
+    color: #cbd5e1;
+  }
+  .rank-3 .podium-score {
+    color: #fdba74;
+  }
 
   .podium-points {
     font-size: 0.75rem;
@@ -606,7 +702,7 @@
   .row-progress-track {
     width: 100%;
     height: 4px;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 2px;
     overflow: hidden;
   }
@@ -647,7 +743,7 @@
     text-align: center;
     color: var(--color-muted);
     font-size: 0.9rem;
-    background: rgba(255,255,255,0.02);
+    background: rgba(255, 255, 255, 0.02);
     border-radius: var(--radius-md);
     margin-top: 0.5rem;
   }
@@ -671,13 +767,24 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   @media (max-width: 600px) {
-    .podium-name { font-size: 0.75rem; }
-    .podium-score { font-size: 1.1rem; }
-    .row-details { flex-wrap: wrap; gap: 0.5rem; }
-    .detail-item { width: 45%; }
+    .podium-name {
+      font-size: 0.75rem;
+    }
+    .podium-score {
+      font-size: 1.1rem;
+    }
+    .row-details {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .detail-item {
+      width: 45%;
+    }
   }
 </style>
