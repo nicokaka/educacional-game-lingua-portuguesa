@@ -609,7 +609,7 @@
     <div class="victory-screen">
       <div class="ending-illustration victory-illustration">
         <img
-          src="/prof-win.png"
+          src="/prof-win.webp"
           alt="Professor comemorando a vitoria"
           class="ending-professor victory-professor"
         />
@@ -652,7 +652,7 @@
     <div class="game-over-screen">
       <div class="ending-illustration lost-illustration">
         <img
-          src="/prof-lost.png"
+          src="/prof-lost.webp"
           alt="Professor orientando tentar novamente"
           class="ending-professor lost-professor"
         />
@@ -1139,6 +1139,55 @@
 
   .attempt-save-note.error {
     color: #fecaca;
+  }
+
+  @media (max-width: 640px) {
+    .victory-screen,
+    .game-over-screen,
+    .error-screen {
+      padding: 1rem;
+      min-height: 100svh;
+      justify-content: flex-start;
+      padding-top: 2rem;
+    }
+
+    .ending-illustration {
+      padding: 0.35rem;
+      border-radius: 20px;
+    }
+
+    .ending-illustration::after {
+      border-radius: 20px;
+    }
+
+    .ending-professor {
+      width: min(92vw, 360px);
+      max-height: 40vh;
+      border-radius: 16px;
+    }
+
+    .victory-stats {
+      gap: 0.75rem;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .stat-card {
+      padding: 0.85rem 1rem;
+      flex: 1;
+      max-width: 140px;
+    }
+
+    .stat-card-value {
+      font-size: 1.5rem;
+    }
+
+    .action-btn {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.95rem;
+      width: 100%;
+      max-width: 320px;
+    }
   }
 
 </style>

@@ -183,4 +183,13 @@
     from { box-shadow: 0 0 5px var(--color-wrong, #f87171); }
     to   { box-shadow: 0 0 20px var(--color-wrong, #f87171), 0 0 40px rgba(248, 113, 113, 0.3); }
   }
+
+  @media (max-width: 640px) {
+    .options-grid {
+      grid-template-columns: 1fr;
+    }
+    .option-btn {
+      padding: 0.85rem 1.1rem;
+    }
+  }
 </style>

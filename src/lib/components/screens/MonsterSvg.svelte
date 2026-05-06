@@ -31,18 +31,20 @@
     }
 
     if (numberFromName > 0) {
+      push(`/monstro${numberFromName}.webp`);
       push(`/monstro${numberFromName}.png`);
+      push(`/monster${numberFromName}.webp`);
       push(`/monster${numberFromName}.png`);
-      push(`/monster_${String(numberFromName).padStart(2, '0')}.png`);
+      push(`/monster_${String(numberFromName).padStart(2, '0')}.webp`);
     }
 
     const fallbackIndex = (Math.abs(Number(monsterSeed) || 0) % 6) + 1;
-    push(`/monstro${fallbackIndex}.png`);
+    push(`/monstro${fallbackIndex}.webp`);
 
     // Biblioteca de fallback: tenta os primeiros slots comuns sem depender do cadastro.
     for (let i = 1; i <= 8; i++) {
-      push(`/monstro${i}.png`);
-      push(`/monster${i}.png`);
+      push(`/monstro${i}.webp`);
+      push(`/monster${i}.webp`);
     }
 
     return candidates;
@@ -54,7 +56,7 @@
     if (/^https?:\/\//i.test(raw)) return raw;
     if (raw.startsWith('/')) return raw;
     if (/\.[a-z0-9]+$/i.test(raw)) return `/${raw}`;
-    return `/${raw}.png`;
+    return `/${raw}.webp`;
   }
 
   function handleImageError() {

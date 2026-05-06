@@ -276,4 +276,48 @@
     from { transform: scale(1); }
     to { transform: scale(1.15); }
   }
+
+  @media (max-width: 640px) {
+    .hud {
+      padding: 0.75rem 0.85rem;
+    }
+    
+    .hud-top {
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.4rem;
+    }
+
+    .module-name {
+      font-size: 0.75rem;
+      max-width: 65%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hud-main {
+      gap: 0.4rem;
+    }
+    
+    .stat-label, .hp-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.04em;
+    }
+    
+    .stat-value {
+      font-size: 1.15rem;
+    }
+    
+    .hp-text {
+      font-size: 0.65rem;
+    }
+    
+    .stat-block {
+      min-width: 45px;
+    }
+
+    .player-section {
+      padding: 0.4rem 0.5rem 0.35rem;
+    }
+  }
 </style>

@@ -20,6 +20,7 @@
     let width = 0;
     let height = 0;
     let particles = [];
+    let isMobile = false;
 
     function createParticle() {
       const isBright = Math.random() > 0.72;
@@ -43,6 +44,7 @@
     function resizeCanvas() {
       width = window.innerWidth;
       height = window.innerHeight;
+      isMobile = width < 640;
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
 
       canvasEl.width = width * ratio;
@@ -70,10 +72,16 @@
         context.fillStyle = particle.hue === 46
           ? `rgba(250, 204, 21, ${particle.alpha})`
           : `rgba(96, 165, 250, ${particle.alpha})`;
-        context.shadowColor = particle.hue === 46
-          ? 'rgba(250, 204, 21, 0.35)'
-          : 'rgba(96, 165, 250, 0.28)';
-        context.shadowBlur = particle.bright ? 22 : 14;
+        
+        if (isMobile) {
+          context.shadowBlur = 0;
+        } else {
+          context.shadowColor = particle.hue === 46
+            ? 'rgba(250, 204, 21, 0.35)'
+            : 'rgba(96, 165, 250, 0.28)';
+          context.shadowBlur = particle.bright ? 22 : 14;
+        }
+        
         context.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         context.fill();
       }

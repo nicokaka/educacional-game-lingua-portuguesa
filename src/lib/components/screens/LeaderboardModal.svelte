@@ -774,8 +774,19 @@
   }
 
   @media (max-width: 600px) {
+    .podium-section {
+      padding: 1rem 0.25rem;
+      gap: 0.25rem;
+    }
+    .rank-1 { height: 155px; }
+    .rank-2 { height: 135px; }
+    .rank-3 { height: 120px; }
+    .podium-badge {
+      font-size: 1.4rem;
+      margin-top: -1.4rem;
+    }
     .podium-name {
-      font-size: 0.75rem;
+      font-size: 0.65rem;
     }
     .podium-score {
       font-size: 1.1rem;

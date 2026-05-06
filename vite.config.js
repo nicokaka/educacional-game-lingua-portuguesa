@@ -35,7 +35,7 @@ export default defineConfig({
         // Cache das imagens de monstros e professor (assets estáticos grandes)
         runtimeCaching: [
           {
-            urlPattern: /\/monstro\d+\.png$/,
+            urlPattern: /\/monstro\d+\.webp$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'monster-images',
@@ -43,7 +43,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /\/prof-.+\.png$/,
+            urlPattern: /\/prof-.+\.webp$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'professor-images',
