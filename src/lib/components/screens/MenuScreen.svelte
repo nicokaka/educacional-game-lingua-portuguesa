@@ -45,7 +45,7 @@
   let leaderboardClassroomName = $state('');
   let leaderboardStudentName = $state('');
   let leaderboardAttemptCount = $state(0);
-  let leaderboardTop3 = $state([]);
+  let leaderboardEntries = $state([]);
   let currentStudentLeaderboard = $state(null);
   const creatorName = import.meta.env.VITE_GAME_CREATOR || 'Nicolas Oliveira';
   const mentorName = import.meta.env.VITE_GAME_MENTOR || 'Sergio Claudino';
@@ -252,7 +252,7 @@
     leaderboardClassroomName = filter?.classroomName ?? (getSavedClassroomName().trim() || 'Todas as turmas');
     leaderboardStudentName = filter?.studentName ?? getSavedStudentName().trim();
     leaderboardAttemptCount = 0;
-    leaderboardTop3 = [];
+    leaderboardEntries = [];
     currentStudentLeaderboard = null;
 
     try {
@@ -266,7 +266,7 @@
           filterClassroomId: leaderboardClassroomId,
         }
       );
-      leaderboardTop3 = result.top3;
+      leaderboardEntries = result.rankedEntries;
       leaderboardAttemptCount = result.attemptCount || 0;
       currentStudentLeaderboard = result.currentStudent;
     } catch (error) {
@@ -305,7 +305,7 @@
     leaderboardClassroomName = '';
     leaderboardStudentName = '';
     leaderboardAttemptCount = 0;
-    leaderboardTop3 = [];
+    leaderboardEntries = [];
     currentStudentLeaderboard = null;
   }
 
@@ -652,7 +652,7 @@
   period={leaderboardPeriod}
   loading={leaderboardLoading}
   error={leaderboardError}
-  rankedEntries={leaderboardTop3}
+  rankedEntries={leaderboardEntries}
   currentStudentLeaderboard={currentStudentLeaderboard}
   attemptCount={leaderboardAttemptCount}
   onclose={closeLeaderboard}
@@ -1274,7 +1274,7 @@
     }
   }
 
-  @media (max-height: 820px) {
+  @media (max-width: 640px), (max-height: 820px) {
     .menu-screen {
       min-height: 100svh;
       justify-content: flex-start;

@@ -23,9 +23,10 @@ function stripV2Columns(payload) {
 
 function getLeaderboardWindowStart(period = '12h') {
   if (period === 'today') {
-    // Usa meia-noite UTC para evitar divergência entre celulares com fusos diferentes.
+    // Usa início do dia no fuso local do navegador para evitar divergência.
     const now = new Date();
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+    now.setHours(0, 0, 0, 0);
+    return now.toISOString();
   }
 
   if (period === '7d') {
@@ -36,6 +37,28 @@ function getLeaderboardWindowStart(period = '12h') {
 }
 
 // Utilitários de Tratamento de Dados (Anti-Dado Sujo)
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 function toTitleCase(str) {
   if (!str) return '';
   return str.trim().toLowerCase().split(/\s+/).map(word => {
@@ -246,8 +269,10 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
       const [seenClassroom, seenName] = seenKey.split('::');
       
       if (seenClassroom === currentClassroom) {
+        const distance = levenshteinDistance(seenName, dedupName);
         // Se um nome contém o outro (ex: "davi e pedro" vs "davi e pedro isaias") e for maior que 4 caracteres
-        if ((seenName.includes(dedupName) || dedupName.includes(seenName)) && Math.min(seenName.length, dedupName.length) > 4) {
+        // Ou se a distância de Levenshtein for pequena (typos, ex: distance <= 2)
+        if (distance <= 2 || ((seenName.includes(dedupName) || dedupName.includes(seenName)) && Math.min(seenName.length, dedupName.length) > 4)) {
           isDuplicate = true;
           break;
         }
@@ -276,7 +301,7 @@ export async function fetchModuleLeaderboard(moduleId, currentStudentName = '', 
     : -1;
 
   return {
-    top3: bestByStudent,
+    rankedEntries: bestByStudent,
     attemptCount: rows.length,
     currentStudent: currentStudentIndex === -1
       ? null
